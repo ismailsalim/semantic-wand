@@ -10,8 +10,8 @@ from PIL import Image
 import cv2
 
 class Pipeline:
-    def __init__(self):
-        self.coarse_stage = CoarseStage()
+    def __init__(self, args):
+        self.coarse_stage = CoarseStage(args.coarse_config, args.coarse_thresh)
 
     def process(self, args):
         images, filenames = self.load_images(args.images_dir)
