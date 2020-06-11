@@ -15,18 +15,21 @@ class CoarseStage:
         self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url('COCO-InstanceSegmentation/'+cfg)
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = thresh
 
+
     def pred(self, img):
         predictor = DefaultPredictor(self.cfg)
         return predictor(img)
+
 
     def get_instances(self, img, preds):
         v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1.2)
         v = v.draw_instance_predictions(preds['instances'].to('cpu'))
         return v.get_image()[:, :, ::-1]
 
+
     def get_subj_mask(self, preds):
         main_instance = self.find_subj(preds['instances']) 
-        mask = main_instance.get('pred_masks').cpu().numpy().squeeze().astype(int)
+        mask = main_instance.get('pred_masks').cpu().numpy().squeeze().astype(float)
         size = main_instance.get('pred_boxes').area().cpu().item()
         return mask, size
     
