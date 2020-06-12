@@ -1,6 +1,5 @@
 # local application libraries
 from matting.networks.models import build_model
-from matting.networks.transforms import trimap_transform, groupnorm_normalise_image
 
 # system libraries
 import os
@@ -40,8 +39,8 @@ class RefinementStage:
             image_torch = self.to_tensor(scaled_img)
             trimap_torch = self.to_tensor(scaled_trimap)
 
-            trimap_transformed_torch = self.to_tensor(trimap_transform(scaled_trimap))
-            image_transformed_torch = groupnorm_normalise_image(image_torch.clone(), format='nchw')
+            trimap_transformed_torch = self.to_tensor(self.trimap_transform(scaled_trimap))
+            image_transformed_torch = self.groupnorm_normalise_image(image_torch.clone(), format='nchw')
 
             output = model(image_torch, trimap_torch, image_transformed_torch, trimap_transformed_torch)
 
@@ -70,4 +69,34 @@ class RefinementStage:
         x_scale = cv2.resize(x, (w1, h1), interpolation=cv2.INTER_LANCZOS4)
         return x_scale
 
+
+    def trimap_transform(self, trimap):
+        h, w = trimap.shape[0], trimap.shape[1]
+
+        clicks = np.zeros((h, w, 6))
+        for k in range(2):
+            if(np.count_nonzero(trimap[:, :, k]) > 0):
+                dt_mask = -self.dt(1 - trimap[:, :, k])**2
+                L = 320
+                clicks[:, :, 3*k] = np.exp(dt_mask / (2 * ((0.02 * L)**2)))
+                clicks[:, :, 3*k+1] = np.exp(dt_mask / (2 * ((0.08 * L)**2)))
+                clicks[:, :, 3*k+2] = np.exp(dt_mask / (2 * ((0.16 * L)**2)))
+
+        return clicks
+
+    def dt(self, a):
+        return cv2.distanceTransform((a * 255).astype(np.uint8), cv2.DIST_L2, 0)
+
+
+    def groupnorm_normalise_image(self, img, format='nhwc'):
+        group_norm_std = [0.229, 0.224, 0.225]
+        group_norm_mean = [0.485, 0.456, 0.406]
+        if(format == 'nhwc'):
+            for i in range(3):
+                img[..., i] = (img[..., i] - group_norm_mean[i]) / group_norm_std[i]
+        else:
+            for i in range(3):
+                img[..., i, :, :] = (img[..., i, :, :] - group_norm_mean[i]) / group_norm_std[i]
+
+        return img
 
