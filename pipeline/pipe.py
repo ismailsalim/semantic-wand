@@ -17,9 +17,9 @@ class Pipeline:
         self.trimap_stage = TrimapStage(args.trimap_kernel_size,
                                         args.dilation, args.erosion)
         
-        self.refinement_stage = RefinementStage()
+        self.refinement_stage = RefinementStage(args.matting_weights)
 
-    
+
     def process(self, args):
         images, filenames = self.load_images(args.images_dir)
         
@@ -40,6 +40,7 @@ class Pipeline:
             matte[:, :, 3] = alpha
             self.save(matte*255, filename, 'matte', args.final_mattes_dir)
 
+
     def load_images(self, dir):
         images = []
         filenames = []
@@ -55,4 +56,6 @@ class Pipeline:
     def save(self, img, file_name, file_type, dir):
         output_file_name = '{0}_{2}{1}'.format(*os.path.splitext(file_name), file_type)
         cv2.imwrite(os.path.join(dir, output_file_name), img)
+
+    
 

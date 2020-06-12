@@ -32,6 +32,8 @@ def main():
                         help='Number of iterations applied for erosion')
 
     # for refinement stage specification
+    parser.add_argument('--matting_weights', default='./matting/FBA.pth', 
+                        help='Size of kernel used for trimap erosion/dilation')
 
     args = parser.parse_args()
 
