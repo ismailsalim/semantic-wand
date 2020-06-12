@@ -1,5 +1,5 @@
 import torch.nn as nn
-import matting.networks.layers_WS as L
+import matting_network.layers_WS as L
 
 __all__ = ['ResNet', 'l_resnet50']
 

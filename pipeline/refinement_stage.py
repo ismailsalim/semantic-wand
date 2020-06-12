@@ -1,5 +1,5 @@
 # local application libraries
-from matting.networks.models import build_model
+from matting_network.models import build_model
 
 # system libraries
 import os
