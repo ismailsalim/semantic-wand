@@ -9,19 +9,14 @@ def build_model(encoder, decoder, weights):
     builder = ModelBuilder()
     net_encoder = builder.build_encoder(arch=encoder)
 
-    if('BN' in encoder):
-        batch_norm = True
-    else:
-        batch_norm = False
-    net_decoder = builder.build_decoder(arch=decoder, batch_norm=batch_norm)
+    net_decoder = builder.build_decoder(arch=decoder, batch_norm=False)
 
     model = MattingModule(net_encoder, net_decoder)
 
     model.cuda()
-
-    if(weights != 'default'):
-        sd = torch.load(weights)
-        model.load_state_dict(sd, strict=True)
+    
+    sd = torch.load(weights)
+    model.load_state_dict(sd, strict=True)
 
     return model
 

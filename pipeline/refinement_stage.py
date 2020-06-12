@@ -18,7 +18,7 @@ class RefinementStage:
     def process(self, trimap, img):
         h, w = trimap.shape
 
-        # fba model requires two channel trimap
+        # fba matting network requires two channel trimap
         fba_trimap = np.zeros((h, w, 2)) 
         fba_trimap[trimap==1, 1] = 1
         fba_trimap[trimap==0, 0] = 1
@@ -26,6 +26,7 @@ class RefinementStage:
         img = img/255.0
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
+        
         matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
         matte[:, :, 3] = alpha
         return matte
@@ -54,6 +55,7 @@ class RefinementStage:
         fg[alpha == 1] = img[alpha == 1]
         alpha[trimap[:, :, 0] == 1] = 0
         alpha[trimap[:, :, 1] == 1] = 1
+
         return fg, alpha
 
 
@@ -95,7 +97,7 @@ class RefinementStage:
         mean = [0.485, 0.456, 0.406]
         
         for i in range(3):
-            img[..., i, :, :] = (img[..., i, :, :]-mean[i])/std[i]
-        
+            img[..., i, :, :] = (img[..., i, :, :]-mean[i])/std[i]  
+
         return img
 
