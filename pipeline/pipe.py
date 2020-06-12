@@ -1,6 +1,7 @@
 # local application libraries
 from pipeline.coarse_stage import CoarseStage
 from pipeline.trimap_stage import TrimapStage
+from pipeline.refinement_stage import RefinementStage
 
 # system libraries
 import os
@@ -15,6 +16,8 @@ class Pipeline:
        
         self.trimap_stage = TrimapStage(args.trimap_kernel_size,
                                         args.dilation, args.erosion)
+        
+        self.refinement_stage = RefinementStage()
 
     
     def process(self, args):
@@ -30,16 +33,19 @@ class Pipeline:
             self.save(subj.astype(int)*255, filename, 'subj_pred', args.subj_masks_dir)
 
             trimap = self.trimap_stage.process(subj.astype(float), size)
-            self.save((trimap*255).astype(int), filename, 'trimap', args.trimaps_dir)
+            self.save(trimap*255, filename, 'trimap', args.trimaps_dir)
 
-   
+            fg, bg, alpha = self.refinement_stage.process(trimap, img)
+            matte = cv2.cvtColor(fg*alpha[:,:,None], cv2.COLOR_RGB2RGBA)     
+            matte[:, :, 3] = alpha
+            self.save(matte*255, filename, 'matte', args.final_mattes_dir)
+
     def load_images(self, dir):
         images = []
         filenames = []
         
         for filename in os.listdir(dir):
             img = cv2.imread(os.path.join(dir, filename))
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             images.append(img)
             filenames.append(filename)
         
@@ -48,10 +54,5 @@ class Pipeline:
     
     def save(self, img, file_name, file_type, dir):
         output_file_name = '{0}_{2}{1}'.format(*os.path.splitext(file_name), file_type)
-        
-        if len(img.shape) == 2: # Single channel image (e.g. subject masks)
-            cv2.imwrite(os.path.join(dir, output_file_name), img)
-        
-        if len(img.shape) == 3: # RGB image (e.g. instance predictions)
-            cv2.imwrite(os.path.join(dir, output_file_name), 
-                                    cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(dir, output_file_name), img)
+

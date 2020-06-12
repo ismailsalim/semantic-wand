@@ -10,7 +10,7 @@ class TrimapStage:
         self.ksize = ksize
         self.dilation = dilation
         self.erosion = erosion  
-
+        
 
     def process(self, mask, size):
         base_its = int(size/10000)
