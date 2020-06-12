@@ -1,7 +1,6 @@
 # local application libraries
 from matting.networks.models import build_model
 from matting.networks.transforms import trimap_transform, groupnorm_normalise_image
-from matting.dataloader import PredDataset
 
 # system libraries
 import os
@@ -31,17 +30,17 @@ class RefinementStage:
         return fg, bg, alpha
         
 
-    def pred(self, image_np, trimap_np, model):
-        h, w = trimap_np.shape[:2]
+    def pred(self, img, trimap, model):
+        h, w = trimap.shape[:2]
 
-        image_scale_np = self.scale_input(image_np, 1.0, cv2.INTER_LANCZOS4)
-        trimap_scale_np = self.scale_input(trimap_np, 1.0, cv2.INTER_LANCZOS4)
+        scaled_img = self.scale_input(img, 1.0)
+        scaled_trimap = self.scale_input(trimap, 1.0)
 
         with torch.no_grad():
-            image_torch = self.np_to_torch(image_scale_np)
-            trimap_torch = self.np_to_torch(trimap_scale_np)
+            image_torch = self.to_tensor(scaled_img)
+            trimap_torch = self.to_tensor(scaled_trimap)
 
-            trimap_transformed_torch = self.np_to_torch(trimap_transform(trimap_scale_np))
+            trimap_transformed_torch = self.to_tensor(trimap_transform(scaled_trimap))
             image_transformed_torch = groupnorm_normalise_image(image_torch.clone(), format='nchw')
 
             output = model(image_torch, trimap_torch, image_transformed_torch, trimap_transformed_torch)
@@ -52,23 +51,23 @@ class RefinementStage:
         bg = output[:, :, 4:7]
         alpha = output[:, :, 0]
 
-        fg[alpha == 1] = image_np[alpha == 1]
-        bg[alpha == 0] = image_np[alpha == 0]
-        alpha[trimap_np[:, :, 0] == 1] = 0
-        alpha[trimap_np[:, :, 1] == 1] = 1
+        fg[alpha == 1] = img[alpha == 1]
+        bg[alpha == 0] = img[alpha == 0]
+        alpha[trimap[:, :, 0] == 1] = 0
+        alpha[trimap[:, :, 1] == 1] = 1
         
         return fg, bg, alpha
 
 
-    def np_to_torch(self, x):
+    def to_tensor(self, x):
         return torch.from_numpy(x).permute(2, 0, 1)[None, :, :, :].float().cuda()
 
 
-    def scale_input(self, x, scale, scale_type):
+    def scale_input(self, x, scale):
         h, w = x.shape[:2]
         h1 = int(np.ceil(scale * h / 8) * 8)
         w1 = int(np.ceil(scale * w / 8) * 8)
-        x_scale = cv2.resize(x, (w1, h1), interpolation=scale_type)
+        x_scale = cv2.resize(x, (w1, h1), interpolation=cv2.INTER_LANCZOS4)
         return x_scale
 
 
