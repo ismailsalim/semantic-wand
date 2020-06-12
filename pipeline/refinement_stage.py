@@ -25,8 +25,10 @@ class RefinementStage:
         
         img = img/255.0
     
-        fg, bg, alpha = self.pred(img, fba_trimap, self.model)
-        return fg, bg, alpha
+        fg, alpha = self.pred(img, fba_trimap, self.model)
+        matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
+        matte[:, :, 3] = alpha
+        return matte
         
 
     def pred(self, img, trimap, model):
@@ -45,18 +47,14 @@ class RefinementStage:
             output = model(img_torch, trimap_torch, img_trans_torch, trimap_trans_torch)    
             output = cv2.resize(output[0].cpu().numpy().transpose((1, 2, 0)), (w, h), cv2.INTER_LANCZOS4)
         
-        # seven output channels (joint estimation of F, B, alpha)
+        #  using 4 of 7 output channels 
         alpha = output[:, :, 0]
         fg = output[:, :, 1:4]
-        bg = output[:, :, 4:7]
         
-
         fg[alpha == 1] = img[alpha == 1]
-        bg[alpha == 0] = img[alpha == 0]
         alpha[trimap[:, :, 0] == 1] = 0
         alpha[trimap[:, :, 1] == 1] = 1
-        
-        return fg, bg, alpha
+        return fg, alpha
 
 
     def scale_input(self, x, scale):

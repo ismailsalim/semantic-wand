@@ -35,9 +35,7 @@ class Pipeline:
             trimap = self.trimap_stage.process(subj.astype(float), size)
             self.save(trimap*255, filename, 'trimap', args.trimaps_dir)
 
-            fg, bg, alpha = self.refinement_stage.process(trimap, img)
-            matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
-            matte[:, :, 3] = alpha
+            matte = self.refinement_stage.process(trimap, img)
             self.save(matte*255, filename, 'matte', args.final_mattes_dir)
 
 
