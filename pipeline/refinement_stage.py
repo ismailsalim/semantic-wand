@@ -18,7 +18,7 @@ class RefinementStage:
     def process(self, trimap, img):
         h, w = trimap.shape
 
-        # model requires two channel trimap
+        # fba model requires two channel trimap
         fba_trimap = np.zeros((h, w, 2)) 
         fba_trimap[trimap==1, 1] = 1
         fba_trimap[trimap==0, 0] = 1
@@ -30,25 +30,26 @@ class RefinementStage:
         
 
     def pred(self, img, trimap, model):
-        h, w = trimap.shape[:2]
+        h, w = img.shape[:2]
 
-        scaled_img = self.scale_input(img, 1.0)
-        scaled_trimap = self.scale_input(trimap, 1.0)
+        img_scaled = self.scale_input(img, 1.0)
+        trimap_scaled = self.scale_input(trimap, 1.0)
 
         with torch.no_grad():
-            image_torch = self.to_tensor(scaled_img)
-            trimap_torch = self.to_tensor(scaled_trimap)
+            img_torch = self.np_to_torch(img_scaled)
+            trimap_torch = self.np_to_torch(trimap_scaled)
 
-            trimap_transformed_torch = self.to_tensor(self.trimap_transform(scaled_trimap))
-            image_transformed_torch = self.groupnorm_normalise_image(image_torch.clone())
+            img_trans_torch = self.normalise_img(img_torch.clone())
+            trimap_trans_torch = self.np_to_torch(self.blur_trimap(trimap_scaled))
 
-            output = model(image_torch, trimap_torch, image_transformed_torch, trimap_transformed_torch)
-
+            output = model(img_torch, trimap_torch, img_trans_torch, trimap_trans_torch)    
             output = cv2.resize(output[0].cpu().numpy().transpose((1, 2, 0)), (w, h), cv2.INTER_LANCZOS4)
         
+        # seven output channels (joint estimation of F, B, alpha)
+        alpha = output[:, :, 0]
         fg = output[:, :, 1:4]
         bg = output[:, :, 4:7]
-        alpha = output[:, :, 0]
+        
 
         fg[alpha == 1] = img[alpha == 1]
         bg[alpha == 0] = img[alpha == 0]
@@ -56,10 +57,6 @@ class RefinementStage:
         alpha[trimap[:, :, 1] == 1] = 1
         
         return fg, bg, alpha
-
-
-    def to_tensor(self, x):
-        return torch.from_numpy(x).permute(2, 0, 1)[None, :, :, :].float().cuda()
 
 
     def scale_input(self, x, scale):
@@ -70,29 +67,37 @@ class RefinementStage:
         return x_scale
 
 
-    def trimap_transform(self, trimap):
+    def np_to_torch(self, x):
+        return torch.from_numpy(x).permute(2, 0, 1)[None, :, :, :].float().cuda()
+        
+
+    def blur_trimap(self, trimap):
         h, w = trimap.shape[0], trimap.shape[1]
 
+        # gaussian blurring at 3 different scales
         clicks = np.zeros((h, w, 6))
         for k in range(2):
-            if(np.count_nonzero(trimap[:,:,k]) > 0):
-                dt_mask = -self.dt(1-trimap[:,:,k])**2
+            if(np.count_nonzero(trimap[:, :, k]) > 0):
+                dt_mask = -self.distance_transform(1-trimap[:, :, k])**2
                 L = 320
-                clicks[:,:,3*k] = np.exp(dt_mask/(2*((0.02*L)**2)))
-                clicks[:,:,3*k+1] = np.exp(dt_mask/(2*((0.08*L)**2)))
-                clicks[:,:,3*k+2] = np.exp(dt_mask/(2*((0.16*L)**2)))
+                clicks[:, :, 3*k] = np.exp(dt_mask/(2*((0.02*L)**2)))
+                clicks[:, :, 3*k+1] = np.exp(dt_mask/(2*((0.08*L)**2)))
+                clicks[:, :, 3*k+2] = np.exp(dt_mask/(2*((0.16*L)**2)))
 
         return clicks
 
 
-    def dt(self, a):
-        return cv2.distanceTransform((a*255).astype(np.uint8), cv2.DIST_L2, 0)
+    def distance_transform(self, trimap_channel):
+        return cv2.distanceTransform((trimap_channel*255).astype(np.uint8), cv2.DIST_L2, 0)
 
 
-    def groupnorm_normalise_image(self, img):
-        group_norm_std = [0.229, 0.224, 0.225]
-        group_norm_mean = [0.485, 0.456, 0.406]
+    def normalise_img(self, img):
+        # group normalisation
+        std = [0.229, 0.224, 0.225]
+        mean = [0.485, 0.456, 0.406]
+        
         for i in range(3):
-            img[..., i, :, :] = (img[..., i, :, :]-group_norm_mean[i])/group_norm_std[i]
+            img[..., i, :, :] = (img[..., i, :, :]-mean[i])/std[i]
+        
         return img
 
