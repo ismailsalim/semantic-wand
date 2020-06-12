@@ -12,7 +12,7 @@ import torch
 
 class RefinementStage:
     def __init__(self, weights):
-        self.model = build_model('resnet50_GN_WS', 'fba_decoder', weights)
+        self.model = build_model(weights)
 
 
     def process(self, trimap, img):

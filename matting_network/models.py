@@ -5,16 +5,15 @@ import matting_network.layers_WS as L
 import matting_network.resnet_bn as resnet_bn
 
 
-def build_model(encoder, decoder, weights):
+def build_model(weights):
     builder = ModelBuilder()
-    net_encoder = builder.build_encoder(arch=encoder)
 
-    net_decoder = builder.build_decoder(arch=decoder, batch_norm=False)
+    net_encoder = builder.build_encoder()
+    net_decoder = fba_decoder()
 
     model = MattingModule(net_encoder, net_decoder)
-
     model.cuda()
-    
+
     sd = torch.load(weights)
     model.load_state_dict(sd, strict=True)
 
@@ -34,21 +33,13 @@ class MattingModule(nn.Module):
 
 
 class ModelBuilder():
-    def build_encoder(self, arch='resnet50_GN'):
-        if arch == 'resnet50_GN_WS':
-            orig_resnet = resnet_GN_WS.__dict__['l_resnet50']()
-            net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
-        elif arch == 'resnet50_BN':
-            orig_resnet = resnet_bn.__dict__['l_resnet50']()
-            net_encoder = ResnetDilatedBN(orig_resnet, dilate_scale=8)
-
-        else:
-            raise Exception('Architecture undefined!')
+    def build_encoder(self):
+        orig_resnet = resnet_GN_WS.__dict__['l_resnet50']()
+        net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
 
         num_channels = 3 + 6 + 2
 
         if(num_channels > 3):
-            print(f'modifying input layer to accept {num_channels} channels')
             net_encoder_sd = net_encoder.state_dict()
             conv1_weights = net_encoder_sd['conv1.weight']
 
@@ -66,12 +57,6 @@ class ModelBuilder():
 
             net_encoder.load_state_dict(net_encoder_sd)
         return net_encoder
-
-    def build_decoder(self, arch='fba_decoder', batch_norm=False):
-        if arch == 'fba_decoder':
-            net_decoder = fba_decoder(batch_norm=batch_norm)
-
-        return net_decoder
 
 
 class ResnetDilatedBN(nn.Module):
@@ -241,13 +226,6 @@ class ResnetDilated(nn.Module):
         return [x]
 
 
-def norm(dim, bn=False):
-    if(bn is False):
-        return nn.GroupNorm(32, dim)
-    else:
-        return nn.BatchNorm2d(dim)
-
-
 def fba_fusion(alpha, img, F, B):
     F = ((alpha * img + (1 - alpha**2) * F - alpha * (1 - alpha) * B))
     B = ((1 - alpha) * img + (2 * alpha - alpha**2) * B - alpha * (1 - alpha) * F)
@@ -261,18 +239,16 @@ def fba_fusion(alpha, img, F, B):
 
 
 class fba_decoder(nn.Module):
-    def __init__(self, batch_norm=False):
+    def __init__(self):
         super(fba_decoder, self).__init__()
         pool_scales = (1, 2, 3, 6)
-        self.batch_norm = batch_norm
-
         self.ppm = []
 
         for scale in pool_scales:
             self.ppm.append(nn.Sequential(
                 nn.AdaptiveAvgPool2d(scale),
                 L.Conv2d(2048, 256, kernel_size=1, bias=True),
-                norm(256, self.batch_norm),
+                nn.GroupNorm(32, 256),
                 nn.LeakyReLU()
             ))
         self.ppm = nn.ModuleList(self.ppm)
@@ -281,27 +257,25 @@ class fba_decoder(nn.Module):
             L.Conv2d(2048 + len(pool_scales) * 256, 256,
                      kernel_size=3, padding=1, bias=True),
 
-            norm(256, self.batch_norm),
+            nn.GroupNorm(32, 256),
             nn.LeakyReLU(),
             L.Conv2d(256, 256, kernel_size=3, padding=1),
-            norm(256, self.batch_norm),
+            nn.GroupNorm(32, 256),
             nn.LeakyReLU()
         )
 
         self.conv_up2 = nn.Sequential(
             L.Conv2d(256 + 256, 256,
                      kernel_size=3, padding=1, bias=True),
-            norm(256, self.batch_norm),
+            nn.GroupNorm(32, 256),
             nn.LeakyReLU()
         )
-        if(self.batch_norm):
-            d_up3 = 128
-        else:
-            d_up3 = 64
+        
+        d_up3 = 64
         self.conv_up3 = nn.Sequential(
             L.Conv2d(256 + d_up3, 64,
                      kernel_size=3, padding=1, bias=True),
-            norm(64, self.batch_norm),
+            nn.GroupNorm(32, 64),
             nn.LeakyReLU()
         )
 
