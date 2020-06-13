@@ -10,6 +10,7 @@ import os
 import numpy as np
 import cv2
 
+
 class Pipeline:
     def __init__(self, args):
         self.coarse_stage = CoarseStage(args.coarse_config, args.coarse_thresh)

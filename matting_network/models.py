@@ -6,6 +6,7 @@ import matting_network.layers_WS as L
 import torch
 import torch.nn as nn
 
+
 def build_model(weights):
     net_encoder = build_encoder()
     net_decoder = fba_decoder()
@@ -29,7 +30,6 @@ class MattingModule(nn.Module):
         resnet_input = torch.cat((image_n, trimap_transformed, two_chan_trimap), 1)
         conv_out, indices = self.encoder(resnet_input, return_feature_maps=True)
         return self.decoder(conv_out, image, indices, two_chan_trimap)
-
 
 
 def build_encoder():

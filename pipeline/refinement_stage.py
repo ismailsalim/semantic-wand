@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import torch
 
+
 class RefinementStage:
     def __init__(self, weights):
         self.model = build_model(weights)

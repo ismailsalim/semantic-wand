@@ -1,7 +1,8 @@
-import torch.nn as nn
+# local libraries
 import matting_network.layers_WS as L
 
-__all__ = ['ResNet', 'l_resnet50']
+# external libraries
+import torch.nn as nn
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -21,7 +22,7 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = L.BatchNorm2d(planes)
+        self.bn1 = L.BatchNorm2d(planes) 
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = L.BatchNorm2d(planes)
@@ -134,8 +135,3 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
-
-
-def l_resnet50(pretrained=False, **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
-    return model
