@@ -1,5 +1,5 @@
 # local application libraries
-from matting_network.resnet_GN_WS import ResNet, Bottleneck
+from matting_network.resnet_GN_WS import ResNet, ResNetDilated, Bottleneck
 import matting_network.layers_WS as L
 
 # external libraries
@@ -34,7 +34,7 @@ class MattingModule(nn.Module):
 
 def build_encoder():
     orig_resnet = ResNet(Bottleneck, [3, 4, 6, 3])
-    net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
+    net_encoder = ResNetDilated(orig_resnet, dilate_scale=8)
 
     num_channels = 3 + 6 + 2
 
@@ -55,64 +55,6 @@ def build_encoder():
 
     net_encoder.load_state_dict(net_encoder_sd)
     return net_encoder
-
-
-class ResnetDilated(nn.Module):
-    def __init__(self, orig_resnet, dilate_scale=8):
-        super(ResnetDilated, self).__init__()
-        from functools import partial
-
-        if dilate_scale == 8:
-            orig_resnet.layer3.apply(
-                partial(self._nostride_dilate, dilate=2))
-            orig_resnet.layer4.apply(
-                partial(self._nostride_dilate, dilate=4))
-        elif dilate_scale == 16:
-            orig_resnet.layer4.apply(
-                partial(self._nostride_dilate, dilate=2))
-
-        # take pretrained resnet, except AvgPool and FC
-        self.conv1 = orig_resnet.conv1
-        self.bn1 = orig_resnet.bn1
-        self.relu = orig_resnet.relu
-        self.maxpool = orig_resnet.maxpool
-        self.layer1 = orig_resnet.layer1
-        self.layer2 = orig_resnet.layer2
-        self.layer3 = orig_resnet.layer3
-        self.layer4 = orig_resnet.layer4
-
-    def _nostride_dilate(self, m, dilate):
-        classname = m.__class__.__name__
-        if classname.find('Conv') != -1:
-            # the convolution with stride
-            if m.stride == (2, 2):
-                m.stride = (1, 1)
-                if m.kernel_size == (3, 3):
-                    m.dilation = (dilate // 2, dilate // 2)
-                    m.padding = (dilate // 2, dilate // 2)
-            # other convoluions
-            else:
-                if m.kernel_size == (3, 3):
-                    m.dilation = (dilate, dilate)
-                    m.padding = (dilate, dilate)
-
-    def forward(self, x, return_feature_maps=False):
-        conv_out = [x]
-        x = self.relu(self.bn1(self.conv1(x)))
-        conv_out.append(x)
-        x, indices = self.maxpool(x)
-        x = self.layer1(x)
-        conv_out.append(x)
-        x = self.layer2(x)
-        conv_out.append(x)
-        x = self.layer3(x)
-        conv_out.append(x)
-        x = self.layer4(x)
-        conv_out.append(x)
-
-        if return_feature_maps:
-            return conv_out, indices
-        return [x]
 
 
 def fba_fusion(alpha, img, F, B):
