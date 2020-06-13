@@ -27,6 +27,7 @@ class RefinementStage:
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
         
+        # convert to rgba for compositable extraction
         matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
         matte[:, :, 3] = alpha
         return matte
@@ -48,7 +49,7 @@ class RefinementStage:
             output = model(img_torch, trimap_torch, img_trans_torch, trimap_trans_torch)    
             output = cv2.resize(output[0].cpu().numpy().transpose((1, 2, 0)), (w, h), cv2.INTER_LANCZOS4)
         
-        #  using 4 of 7 output channels 
+        #  only using 4 out of the 7 model output channels 
         alpha = output[:, :, 0]
         fg = output[:, :, 1:4]
         
@@ -92,7 +93,7 @@ class RefinementStage:
 
 
     def normalise_img(self, img):
-        # group normalisation
+        # applying group normalisation
         std = [0.229, 0.224, 0.225]
         mean = [0.485, 0.456, 0.406]
         
