@@ -1,5 +1,5 @@
 # local application libraries
-import matting_network.resnet_GN_WS as resnet_GN_WS
+from matting_network.resnet_GN_WS import ResNet, Bottleneck
 import matting_network.layers_WS as L
 
 # external libraries
@@ -33,7 +33,7 @@ class MattingModule(nn.Module):
 
 
 def build_encoder():
-    orig_resnet = resnet_GN_WS.__dict__['l_resnet50']()
+    orig_resnet = ResNet(Bottleneck, [3, 4, 6, 3])
     net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
 
     num_channels = 3 + 6 + 2
@@ -55,7 +55,7 @@ def build_encoder():
 
     net_encoder.load_state_dict(net_encoder_sd)
     return net_encoder
-    
+
 
 class ResnetDilated(nn.Module):
     def __init__(self, orig_resnet, dilate_scale=8):
