@@ -1,16 +1,13 @@
 # local application libraries
 import matting_network.resnet_GN_WS as resnet_GN_WS
 import matting_network.layers_WS as L
-import matting_network.resnet_bn as resnet_bn
 
 # external libraries
 import torch
 import torch.nn as nn
 
 def build_model(weights):
-    builder = ModelBuilder()
-
-    net_encoder = builder.build_encoder()
+    net_encoder = build_encoder()
     net_decoder = fba_decoder()
 
     model = MattingModule(net_encoder, net_decoder)
@@ -34,75 +31,31 @@ class MattingModule(nn.Module):
         return self.decoder(conv_out, image, indices, two_chan_trimap)
 
 
-class ModelBuilder():
-    def build_encoder(self):
-        orig_resnet = resnet_GN_WS.__dict__['l_resnet50']()
-        net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
 
-        num_channels = 3 + 6 + 2
+def build_encoder():
+    orig_resnet = resnet_GN_WS.__dict__['l_resnet50']()
+    net_encoder = ResnetDilated(orig_resnet, dilate_scale=8)
 
-        if(num_channels > 3):
-            net_encoder_sd = net_encoder.state_dict()
-            conv1_weights = net_encoder_sd['conv1.weight']
+    num_channels = 3 + 6 + 2
 
-            c_out, c_in, h, w = conv1_weights.size()
-            conv1_mod = torch.zeros(c_out, num_channels, h, w)
-            conv1_mod[:, :3, :, :] = conv1_weights
+    net_encoder_sd = net_encoder.state_dict()
+    conv1_weights = net_encoder_sd['conv1.weight']
 
-            conv1 = net_encoder.conv1
-            conv1.in_channels = num_channels
-            conv1.weight = torch.nn.Parameter(conv1_mod)
+    c_out, c_in, h, w = conv1_weights.size()
+    conv1_mod = torch.zeros(c_out, num_channels, h, w)
+    conv1_mod[:, :3, :, :] = conv1_weights
 
-            net_encoder.conv1 = conv1
+    conv1 = net_encoder.conv1
+    conv1.in_channels = num_channels
+    conv1.weight = torch.nn.Parameter(conv1_mod)
 
-            net_encoder_sd['conv1.weight'] = conv1_mod
+    net_encoder.conv1 = conv1
 
-            net_encoder.load_state_dict(net_encoder_sd)
-        return net_encoder
+    net_encoder_sd['conv1.weight'] = conv1_mod
 
-
-class Resnet(nn.Module):
-    def __init__(self, orig_resnet):
-        super(Resnet, self).__init__()
-
-        # take pretrained resnet, except AvgPool and FC
-        self.conv1 = orig_resnet.conv1
-        self.bn1 = orig_resnet.bn1
-        self.relu1 = orig_resnet.relu1
-        self.conv2 = orig_resnet.conv2
-        self.bn2 = orig_resnet.bn2
-        self.relu2 = orig_resnet.relu2
-        self.conv3 = orig_resnet.conv3
-        self.bn3 = orig_resnet.bn3
-        self.relu3 = orig_resnet.relu3
-        self.maxpool = orig_resnet.maxpool
-        self.layer1 = orig_resnet.layer1
-        self.layer2 = orig_resnet.layer2
-        self.layer3 = orig_resnet.layer3
-        self.layer4 = orig_resnet.layer4
-
-    def forward(self, x, return_feature_maps=False):
-        conv_out = []
-
-        x = self.relu1(self.bn1(self.conv1(x)))
-        x = self.relu2(self.bn2(self.conv2(x)))
-        x = self.relu3(self.bn3(self.conv3(x)))
-        conv_out.append(x)
-        x, indices = self.maxpool(x)
-
-        x = self.layer1(x)
-        conv_out.append(x)
-        x = self.layer2(x)
-        conv_out.append(x)
-        x = self.layer3(x)
-        conv_out.append(x)
-        x = self.layer4(x)
-        conv_out.append(x)
-
-        if return_feature_maps:
-            return conv_out
-        return [x]
-
+    net_encoder.load_state_dict(net_encoder_sd)
+    return net_encoder
+    
 
 class ResnetDilated(nn.Module):
     def __init__(self, orig_resnet, dilate_scale=8):
