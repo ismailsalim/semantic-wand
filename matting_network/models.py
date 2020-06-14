@@ -1,5 +1,17 @@
+###############################################################################
+# Original source code for the FBA Matting model used in the refinement stage 
+# can be found at https://github.com/MarcoForte/FBA_Matting
+#
+# Pre-trained model weights can also be found at the url above. Note that these
+# are covered by the Deep Image Matting Dataset License Agreement for which
+# the reader should refer to https://sites.google.com/view/deepimagematting
+#
+# This code leverages the FBA matting model trained with GroupNorm and Weight
+# Standardisation specifically (filenames are preserved as per the source)
+###############################################################################
+
 # local application libraries
-from matting_network.resnet_GN_WS import ResNet, ResNetDilated, Bottleneck
+from matting_network.resnet_GN_WS import Bottleneck, ResNet, ResNetDilated
 import matting_network.layers_WS as L
 
 # external libraries

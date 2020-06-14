@@ -1,3 +1,15 @@
+###############################################################################
+# Original source code for the FBA Matting model used in the refinement stage 
+# can be found at https://github.com/MarcoForte/FBA_Matting
+#
+# Pre-trained model weights can also be found at the url above. Note that these
+# are covered by the Deep Image Matting Dataset License Agreement for which
+# the reader should refer to https://sites.google.com/view/deepimagematting
+#
+# This code leverages the FBA matting model trained with GroupNorm and Weight
+# Standardisation specifically (filenames are preserved as per the source)
+###############################################################################
+
 # local application libraries
 from matting_network.models import build_model
 
@@ -13,7 +25,7 @@ import torch
 
 class RefinementStage:
     def __init__(self, weights):
-        self.model = build_model(weights)
+        self.model = build_model(weights) # MattingModule
 
 
     def process(self, trimap, img):
@@ -28,7 +40,7 @@ class RefinementStage:
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
         
-        # convert to rgba for compositable extraction
+        # convert to rgba for compositable matte
         matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
         matte[:, :, 3] = alpha
         return matte
@@ -50,7 +62,7 @@ class RefinementStage:
             output = model(img_torch, trimap_torch, img_trans_torch, trimap_trans_torch)    
             output = cv2.resize(output[0].cpu().numpy().transpose((1, 2, 0)), (w, h), cv2.INTER_LANCZOS4)
         
-        #  only using 4 out of the 7 model output channels 
+        #  only using 4 out of the 7 output channels 
         alpha = output[:, :, 0]
         fg = output[:, :, 1:4]
         
