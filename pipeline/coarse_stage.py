@@ -12,8 +12,8 @@ from detectron2.data import MetadataCatalog
 class CoarseStage:
     def __init__(self, cfg, thresh):
         self.cfg = get_cfg() 
-        self.cfg.merge_from_file(model_zoo.get_config_file('COCO-InstanceSegmentation/'+cfg))
-        self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url('COCO-InstanceSegmentation/'+cfg)
+        self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
+        self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfg)
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = thresh
 
 

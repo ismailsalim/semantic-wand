@@ -20,20 +20,21 @@ def main():
                         help='directory to save intermediate trimap')
     parser.add_argument('--final_mattes_dir', default='./examples/5-final_mattes', 
                         help='directory to save final matting output')
+
+    parser.add_argument('--max_dim', default=600,
+                        help='Maximum dimension in pixels after resizing input image')
     
     # for coarse stage specification
-    parser.add_argument('--coarse_config', default='mask_rcnn_X_101_32x8d_FPN_3x.yaml', 
-                        help='Detectron2 YAML file with Mask R-CNN configuration')
+    parser.add_argument('--coarse_config', default='COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml', 
+                        help='Detectron2 YAML file with Mask R-CNN configuration: https://github.com/facebookresearch/detectron2/blob/master/detectron2/model_zoo/model_zoo.py')
     parser.add_argument('--coarse_thresh', default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
 
     # for trimap stage specification
-    parser.add_argument('--trimap_kernel_size', default=5, 
-                        help='Size of kernel used for trimap erosion/dilation')
-    parser.add_argument('--dilation', default=3, 
-                        help='Number of iterations applied for dilation')
-    parser.add_argument('--erosion', default=0, 
-                        help='Number of iterations applied for erosion')
+    parser.add_argument('--kernel_scale_factor', default=30000, 
+                        help='Number to divide box area by to obtain kernel size')
+    parser.add_argument('--kernel_shape', default='MORPH_RECT', 
+                        help='OpenCV kernel shape type for erosion/dilation')
 
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
