@@ -19,7 +19,12 @@ class CoarseStage:
 
     def pred(self, img):
         predictor = DefaultPredictor(self.cfg)
-        return predictor(img)
+        preds = predictor(img)
+
+        if len(preds['instances']) == 0:
+            raise InstanceError
+        
+        return preds 
 
 
     def get_instances(self, img, preds):
@@ -47,3 +52,10 @@ class CoarseStage:
                 break    
 
         return main_subj
+
+
+class InstanceError(Exception):
+    """Thrown when no instances can be found by Mask R-CNN"""
+    def __init__(self):
+        msg = 'No instances are found during coarse stage!'
+        super(InstanceError, self).__init__(msg)
