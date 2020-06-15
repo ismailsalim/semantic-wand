@@ -88,7 +88,7 @@ class RefinementStage:
     def blur_trimap(self, trimap):
         h, w = trimap.shape[0], trimap.shape[1]
 
-        # gaussian blurring at 3 different scales
+        # gaussian blurring at 3 different scales of definite fg and bg
         clicks = np.zeros((h, w, 6))
         for k in range(2):
             if(np.count_nonzero(trimap[:, :, k]) > 0):

@@ -21,7 +21,7 @@ import torch.nn as nn
 
 def build_model(weights):
     net_encoder = build_encoder()
-    net_decoder = fba_decoder()
+    net_decoder = Decoder()
 
     model = MattingModule(net_encoder, net_decoder)
     model.cuda()
@@ -38,8 +38,8 @@ class MattingModule(nn.Module):
         self.encoder = net_enc
         self.decoder = net_dec
 
-    def forward(self, image, two_chan_trimap, image_n, trimap_transformed):
-        resnet_input = torch.cat((image_n, trimap_transformed, two_chan_trimap), 1)
+    def forward(self, image, two_chan_trimap, image_norm, trimap_transformed):
+        resnet_input = torch.cat((image_norm, trimap_transformed, two_chan_trimap), 1)
         conv_out, indices = self.encoder(resnet_input, return_feature_maps=True)
         return self.decoder(conv_out, image, indices, two_chan_trimap)
 
@@ -69,25 +69,13 @@ def build_encoder():
     return net_encoder
 
 
-def fba_fusion(alpha, img, F, B):
-    F = ((alpha * img + (1 - alpha**2) * F - alpha * (1 - alpha) * B))
-    B = ((1 - alpha) * img + (2 * alpha - alpha**2) * B - alpha * (1 - alpha) * F)
-
-    F = torch.clamp(F, 0, 1)
-    B = torch.clamp(B, 0, 1)
-    la = 0.1
-    alpha = (alpha * la + torch.sum((img - B) * (F - B), 1, keepdim=True)) / (torch.sum((F - B) * (F - B), 1, keepdim=True) + la)
-    alpha = torch.clamp(alpha, 0, 1)
-    return alpha, F, B
-
-
-class fba_decoder(nn.Module):
+class Decoder(nn.Module):
     def __init__(self):
-        super(fba_decoder, self).__init__()
-        pool_scales = (1, 2, 3, 6)
+        super(Decoder, self).__init__()
+        pool_scales = (1, 2, 3, 6) 
         self.ppm = []
 
-        for scale in pool_scales:
+        for scale in pool_scales: # pyramid pooling
             self.ppm.append(nn.Sequential(
                 nn.AdaptiveAvgPool2d(scale),
                 L.Conv2d(2048, 256, kernel_size=1, bias=True),
@@ -136,11 +124,11 @@ class fba_decoder(nn.Module):
         )
 
     def forward(self, conv_out, img, indices, two_chan_trimap):
-        conv5 = conv_out[-1]
+        conv5 = conv_out[-1] 
 
         input_size = conv5.size()
         ppm_out = [conv5]
-        for pool_scale in self.ppm:
+        for pool_scale in self.ppm: # pyramid pooling
             ppm_out.append(nn.functional.interpolate(
                 pool_scale(conv5),
                 (input_size[2], input_size[3]),
@@ -163,13 +151,25 @@ class fba_decoder(nn.Module):
 
         output = self.conv_up4(x)
 
-        alpha = torch.clamp(output[:, 0][:, None], 0, 1)
-        F = torch.sigmoid(output[:, 1:4])
+        alpha = torch.clamp(output[:, 0][:, None], 0, 1) # clip(alpha, 0, 1)
+        F = torch.sigmoid(output[:, 1:4]) 
         B = torch.sigmoid(output[:, 4:7])
 
         # FBA Fusion
-        alpha, F, B = fba_fusion(alpha, img, F, B)
+        alpha, F, B = self.fba_fusion(alpha, img, F, B)
 
         output = torch.cat((alpha, F, B), 1)
 
         return output
+
+
+    def fba_fusion(self, alpha, img, F, B):
+        F = ((alpha * img + (1 - alpha**2) * F - alpha * (1 - alpha) * B))
+        B = ((1 - alpha) * img + (2 * alpha - alpha**2) * B - alpha * (1 - alpha) * F)
+
+        F = torch.clamp(F, 0, 1)
+        B = torch.clamp(B, 0, 1)
+        la = 0.1
+        alpha = (alpha * la + torch.sum((img - B) * (F - B), 1, keepdim=True)) / (torch.sum((F - B) * (F - B), 1, keepdim=True) + la)
+        alpha = torch.clamp(alpha, 0, 1)
+        return alpha, F, B

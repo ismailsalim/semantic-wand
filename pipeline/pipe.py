@@ -5,6 +5,7 @@ from pipeline.refinement_stage import RefinementStage
 
 # system libraries
 import os
+from datetime import datetime
 
 # external libraries
 import numpy as np
@@ -25,6 +26,8 @@ class Pipeline:
         images, filenames = self.load_images(args.images_dir)
         
         for img, filename in zip(images, filenames):
+            start = datetime.now()
+
             coarse_preds = self.coarse_stage.pred(img)
             
             instances = self.coarse_stage.get_instances(img, coarse_preds)
@@ -33,12 +36,17 @@ class Pipeline:
             subj, size = self.coarse_stage.get_subj_mask(coarse_preds)
             self.save(subj.astype(int)*255, filename, 'subj_pred', args.subj_masks_dir)
 
+            end = datetime.now()
+            print('Coarse stage:', end - start)
+
             trimap = self.trimap_stage.process(subj.astype(float), size)
             self.save(trimap*255, filename, 'trimap', args.trimaps_dir)
 
+            start = datetime.now()
             matte = self.refinement_stage.process(trimap, img)
             self.save(matte*255, filename, 'matte', args.final_mattes_dir)
-
+            end = datetime.now()
+            print('Refinement stage:', end - start)
 
     def load_images(self, dir):
         images = []

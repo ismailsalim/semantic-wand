@@ -4,7 +4,6 @@ from pipeline.pipe import Pipeline
 # system libraries
 import argparse
 
-
 def main():
     parser = argparse.ArgumentParser()
     

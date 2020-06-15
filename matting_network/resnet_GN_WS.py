@@ -154,16 +154,11 @@ class ResNetDilated(nn.Module):
         super(ResNetDilated, self).__init__()
         from functools import partial
 
-        if dilate_scale == 8:
-            orig_resnet.layer3.apply(
-                partial(self._nostride_dilate, dilate=2))
-            orig_resnet.layer4.apply(
-                partial(self._nostride_dilate, dilate=4))
-        elif dilate_scale == 16:
-            orig_resnet.layer4.apply(
-                partial(self._nostride_dilate, dilate=2))
+        # increase dilation
+        orig_resnet.layer3.apply(partial(self._nostride_dilate, dilate=2))
+        orig_resnet.layer4.apply(partial(self._nostride_dilate, dilate=4))
 
-        # take pretrained resnet, except AvgPool and FC
+        # take pretrained resnet, except AvgPool and FC 
         self.conv1 = orig_resnet.conv1
         self.bn1 = orig_resnet.bn1
         self.relu = orig_resnet.relu
