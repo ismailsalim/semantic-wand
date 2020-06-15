@@ -12,6 +12,7 @@ logging.basicConfig(filename='trimap.log', level=logging.DEBUG,
 logging.getLogger('matplotlib.font_manager').disabled = True
 
 # external libraries
+import torch
 import numpy as np
 import cv2
 
@@ -25,6 +26,9 @@ class Pipeline:
 
     def process(self, args):
         img = cv2.imread(os.path.join(args.images_dir, args.img_file))
+        if img is None:
+            raise ImageNotFoundError
+
         logging.debug('\n')
         logging.debug('Image file: {}'.format(args.img_file))
         logging.debug('Image shape: {}'.format(img.shape))
@@ -46,11 +50,14 @@ class Pipeline:
         self.save(trimap*255, args.img_file, 'trimap', args.trimaps_dir)
 
 
-        # start = datetime.now()
-        # matte = self.refinement_stage.process(trimap, img)
-        # end = datetime.now()
-        # print('Refinement stage takes:', end - start, 'seconds!')
-        # self.save(matte*255, args.img_file, 'matte', args.final_mattes_dir)
+        start = datetime.now()
+        matte = self.refinement_stage.process(trimap, img)
+        end = datetime.now()
+        logging.debug('Refinement stage takes: {} seconds!'.format(end - start))
+        self.save(matte*255, args.img_file, 'matte', args.final_mattes_dir)
+        
+        # logging.debug("Memory allocated: {}".format(torch.cuda.memory_allocated()))
+        # logging.debug("Max memory allocated: {}".format(torch.cuda.max_memory_allocated()))
 
     
     def resize(self, img, dim_max=600):
@@ -69,4 +76,10 @@ class Pipeline:
         output_file_name = '{0}_{2}{1}'.format(*os.path.splitext(file_name), file_type)
         cv2.imwrite(os.path.join(dir, output_file_name), img)
 
+
+class ImageNotFoundError(Exception):
+    """Thrown when image file isn't/can't be read"""
+    def __init__(self):
+        msg = 'Did not read an image!'
+        super(ImageNotFoundError, self).__init__(msg)
     
