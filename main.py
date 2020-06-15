@@ -8,14 +8,16 @@ def main():
     parser = argparse.ArgumentParser()
     
     # for image directory specification
+    parser.add_argument('img_file',
+                        help='the name of a specific image to be processed')
     parser.add_argument('--images_dir', default='./examples/1-input_images', 
-                        help='directory of input images to be processed')
+                        help='directory of the input image')
     parser.add_argument('--instance_preds_dir', default='./examples/2-instance_preds', 
-                        help='directory to save intermediate coarse instance segementation predictions')
+                        help='directory to save intermediate coarse instance segementation prediction')
     parser.add_argument('--subj_masks_dir', default='./examples/3-subj_mask_preds', 
-                        help='directory to save intermediate coarse subject mask predictions')
+                        help='directory to save intermediate coarse subject mask prediction')
     parser.add_argument('--trimaps_dir', default='./examples/4-trimaps', 
-                        help='directory to save intermediate trimaps')
+                        help='directory to save intermediate trimap')
     parser.add_argument('--final_mattes_dir', default='./examples/5-final_mattes', 
                         help='directory to save final matting output')
     

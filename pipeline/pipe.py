@@ -23,47 +23,30 @@ class Pipeline:
 
 
     def process(self, args):
-        images, filenames = self.load_images(args.images_dir)
-        
-        for i, (img, filename) in enumerate(zip(images, filenames)):
-            print('Image {0} {1} ...'.format(i, img.shape))
-            
-            start = datetime.now()
-            coarse_preds = self.coarse_stage.pred(img)   
-            instances = self.coarse_stage.get_instances(img, coarse_preds)
-            subj, size = self.coarse_stage.get_subj_mask(coarse_preds)
-            end = datetime.now()
-            print('Coarse stage takes:', end - start, 'seconds!')
-            self.save(instances, filename, 'instance_preds', args.instance_preds_dir) 
-            self.save(subj.astype(int)*255, filename, 'subj_pred', args.subj_masks_dir)
-      
+        img = cv2.imread(os.path.join(args.images_dir, args.img_file))
 
-            state = datetime.now()
-            trimap = self.trimap_stage.process(subj.astype(float), size)
-            end = datetime.now()
-            print('Trimap stage takes:', end - start, 'seconds!')
-            self.save(trimap*255, filename, 'trimap', args.trimaps_dir)
+        start = datetime.now()
+        coarse_preds = self.coarse_stage.pred(img)   
+        instances = self.coarse_stage.get_instances(img, coarse_preds)
+        subj, size = self.coarse_stage.get_subj_mask(coarse_preds)
+        end = datetime.now()
+        print('Coarse stage takes:', end - start, 'seconds!')
+        self.save(instances, args.img_file, 'instance_preds', args.instance_preds_dir) 
+        self.save(subj.astype(int)*255, args.img_file, 'subj_pred', args.subj_masks_dir)
+    
+
+        state = datetime.now()
+        trimap = self.trimap_stage.process(subj.astype(float), size)
+        end = datetime.now()
+        print('Trimap stage takes:', end - start, 'seconds!')
+        self.save(trimap*255, args.img_file, 'trimap', args.trimaps_dir)
 
 
-            start = datetime.now()
-            matte = self.refinement_stage.process(trimap, img)
-            end = datetime.now()
-            print('Refinement stage takes:', end - start, 'seconds!')
-            self.save(matte*255, filename, 'matte', args.final_mattes_dir)
-
-            print('')
-
-
-    def load_images(self, dir):
-        images = []
-        filenames = []
-        
-        for filename in os.listdir(dir):
-            img = cv2.imread(os.path.join(dir, filename))
-            images.append(img)
-            filenames.append(filename)
-        
-        return images, filenames   
+        start = datetime.now()
+        matte = self.refinement_stage.process(trimap, img)
+        end = datetime.now()
+        print('Refinement stage takes:', end - start, 'seconds!')
+        self.save(matte*255, args.img_file, 'matte', args.final_mattes_dir)
 
     
     def save(self, img, file_name, file_type, dir):
