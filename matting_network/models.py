@@ -20,10 +20,7 @@ import torch.nn as nn
 
 
 def build_model(weights):
-    net_encoder = build_encoder()
-    net_decoder = Decoder()
-
-    model = MattingModule(net_encoder, net_decoder)
+    model = MattingModule()
     model.cuda()
 
     sd = torch.load(weights)
@@ -33,10 +30,10 @@ def build_model(weights):
 
 
 class MattingModule(nn.Module):
-    def __init__(self, net_enc, net_dec):
+    def __init__(self):
         super(MattingModule, self).__init__()
-        self.encoder = net_enc
-        self.decoder = net_dec
+        self.encoder = build_encoder()
+        self.decoder = FBA_Decoder()
 
     def forward(self, image, two_chan_trimap, image_norm, trimap_transformed):
         resnet_input = torch.cat((image_norm, trimap_transformed, two_chan_trimap), 1)
@@ -69,9 +66,9 @@ def build_encoder():
     return net_encoder
 
 
-class Decoder(nn.Module):
+class FBA_Decoder(nn.Module):
     def __init__(self):
-        super(Decoder, self).__init__()
+        super(FBA_Decoder, self).__init__()
         pool_scales = (1, 2, 3, 6) 
         self.ppm = []
 
