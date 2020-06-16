@@ -21,17 +21,20 @@ def main():
     parser.add_argument('--final_mattes_dir', default='./examples/5-final_mattes', 
                         help='directory to save final matting output')
 
-    parser.add_argument('--max_dim', default=600,
+    parser.add_argument('--max_dim', default=1500,
                         help='Maximum dimension in pixels after resizing input image')
     
     # for coarse stage specification
-    parser.add_argument('--coarse_config', default='COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml', 
+    # 'COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml'
+    # 'Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml'
+    # 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml'
+    parser.add_argument('--coarse_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='Detectron2 YAML file with Mask R-CNN configuration: https://github.com/facebookresearch/detectron2/blob/master/detectron2/model_zoo/model_zoo.py')
     parser.add_argument('--coarse_thresh', default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
 
     # for trimap stage specification
-    parser.add_argument('--kernel_scale_factor', default=30000, 
+    parser.add_argument('--kernel_scale_factor', default=10000, 
                         help='Number to divide box area by to obtain kernel size')
     parser.add_argument('--kernel_shape', default='MORPH_RECT', 
                         help='OpenCV kernel shape type for erosion/dilation')

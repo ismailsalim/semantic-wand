@@ -28,7 +28,7 @@ class RefinementStage:
         self.model = build_model(weights) # MattingModule
 
 
-    def process(self, trimap, img):
+    def process(self, trimap, img, target_size):
         h, w = trimap.shape
 
         # fba matting network requires two channel trimap
@@ -40,8 +40,12 @@ class RefinementStage:
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
         
-        # convert to rgba for compositable matte
-        matte = cv2.cvtColor(fg*alpha[:, :, None], cv2.COLOR_RGB2RGBA)     
+        h, w = target_size[:2]
+        fg = cv2.resize(fg, (w,h), interpolation=cv2.INTER_LANCZOS4)
+        alpha = cv2.resize(alpha, (w,h), interpolation=cv2.INTER_NEAREST)
+        
+        matte = fg*alpha[:, :, None]
+        matte = cv2.cvtColor(matte, cv2.COLOR_RGB2RGBA) 
         matte[:, :, 3] = alpha
         return matte
         
