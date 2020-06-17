@@ -24,7 +24,7 @@ class Pipeline:
         if self.img is None:
             raise ImageNotFoundError
         
-        self.max_img_dim = args.max_img_dim
+        self.scale = args.max_img_dim
 
         # configure directories for saving results
         self.instances = args.instance_preds_dir
@@ -44,10 +44,9 @@ class Pipeline:
         logging.debug('\nImage file: {}'.format(self.input_file))
         logging.debug('Image shape: {}'.format(self.img.shape))
         
-        img_size_orig = self.img.shape
+        # rescale according to maximum image dimension specified
         h, w = self.img.shape[:2]
-
-        if h > self.max_img_dim or w > self.max_img_dim:
+        if h > self.scale or w > self.scale:
             self.img = self.rescale(self.img)
             logging.debug('Resizing to: {}'.format(self.img.shape))
 
@@ -55,7 +54,7 @@ class Pipeline:
 
         trimap = self.to_trimap_stage(subj, size)
 
-        self.to_refinement_stage(trimap, self.img, img_size_orig)      
+        self.to_refinement_stage(trimap, self.img)      
     
     
     def to_coarse_stage(self):
@@ -87,10 +86,10 @@ class Pipeline:
         return trimap
     
 
-    def to_refinement_stage(self, trimap, img, img_size_orig):
+    def to_refinement_stage(self, trimap, img):
         start = time.time()
         
-        fg, alpha, matte = self.refinement_stage.process(trimap, img, img_size_orig)
+        fg, alpha, matte = self.refinement_stage.process(trimap, img)
         
         end = time.time()
         logging.debug('Refinement stage takes: {} seconds!'.format(end - start))

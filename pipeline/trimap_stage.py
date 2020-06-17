@@ -13,6 +13,10 @@ class TrimapStage:
 
 
     def process(self, mask, size):
+        # To Do:
+        # Heatmap
+        # Iterations/Shape w/ Box Height
+
         ksize = int(np.ceil(size/self.k_scale_f)) // 2 * 2 + 1  # ensure odd
         
         logging.debug("Kernel scale factor: {}".format(self.k_scale_f))
