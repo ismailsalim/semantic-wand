@@ -1,4 +1,5 @@
 # Semantic Wand: A Tool For Natural Image Object Extraction
+![](./examples/1_input_images/furry-dog.jpg | width=100) ![](./examples/2_instance_preds/furry-dog-instance-preds.png | width=100) ![](./examples/3_subj_mask_preds/furry-dog_subj_pred.png | width=100) ![](./examples/4_trimaps/furry-dog_trimap.jpg | width=100) ![](./examples/5_alphas/furry-dog_alpha.png | width=100) ![](./examples/6_foregrounds/furry-dog_foreground.png =150x) ![](./examples/7_final_mattes/furry-dog_matte.png | width=100)
 
 ## Setting up an environment
 The tool is built using Python 3.6 and relies on PyTorch 1.4.0+. The following command installs all the necessary packages:
@@ -8,7 +9,7 @@ pip install -r requirements.txt
 ```
 
 ## Use
-Currently, the tool reads one image specified in the command line and saves all the intermediate predictions and final matte in directories that can also be specified. 
+Currently, the tool reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte (.png) in directories that can also be specified (directories must exist already). 
 
 The coarse stage relies on pre-trained Mask R-CNN models provided by [Detectron2](https://github.com/facebookresearch/detectron2). A model is downloaded the first time it is specified in the command line when running the tool (see [Example usage](###Example-usage)). A reference to all the different pre-trained models avaiable can be found [here](https://github.com/facebookresearch/detectron2/tree/master/configs).
 
