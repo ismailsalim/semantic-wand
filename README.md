@@ -1,18 +1,20 @@
 # Semantic Wand: A Tool For Natural Image Object Extraction
 
 ## Setting up an environment
-The tool is built using Python 3.6 and relies on PyTorch 1.4.0+. The following command installs all the necessary packages:
+The tool is built using Python 3.6 and requires:
+- PyTorch 1.4.0+ (I'm using torch==1.5.0+cu101 and torchvision==0.6.0+cu101)
+- Detectron2 (I'm using detectron2==0.1.3+cu101)
+- pycocotools
+- OpenCV
 
-```bash
-pip install -r requirements.txt
-```
+You can install Detectron2 according to the instructions [here](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md).
 
 ## Use
 Currently, the tool reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte (.png) in directories that can also be specified (directories must exist already). 
 
 The coarse stage relies on pre-trained Mask R-CNN models provided by [Detectron2](https://github.com/facebookresearch/detectron2). A model is downloaded the first time it is specified in the command line when running the tool (see [Example usage](###Example-usage)). A reference to all the different pre-trained models avaiable can be found [here](https://github.com/facebookresearch/detectron2/tree/master/configs).
 
-The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which should be downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view).
+The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which can be downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view).
 
 For easiest use, keep the repo in the following structure:
 ```bash
