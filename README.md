@@ -48,9 +48,12 @@ python3 main.py donkey.png
 # This uses a non-default model from Detectron2
 python3 main.py donkey.png --coarse_config=COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
-# This changes the maximum dimension of the image fed into the pipeline to 3000 pixels (preserving the aspect ratio). To maintain the original input image size, make this value bigger than the largest dimension of the input image.
+# This changes the maximum dimension of the image fed into the pipeline to 3000 pixels (preserving the aspect ratio). 
+# To maintain the original input image size, make this value bigger than the largest dimension of the input image.
 python3 main.py donkey.png --max_img_dim=3000
 
-# This changes the scale factor applied for calculating the kernel size to 20000. A larger value leads to a smaller kernel size and less erosion/dilation during the trimap stage. (This will be scrapped soon but it's interested to play around with).
+# This changes the scale factor applied for calculating the kernel size to 20000. 
+# A larger value leads to a smaller kernel size and less erosion/dilation during the trimap stage. 
+# (This will be scrapped soon but it's interested to play around with).
 python3 main.py donkey.png --kernel_scale_factor=20000
 ```
