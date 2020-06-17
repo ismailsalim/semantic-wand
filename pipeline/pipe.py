@@ -37,8 +37,8 @@ class Pipeline:
         img_size_orig = img.shape
         h, w = img.shape[:2]
 
-        if h > args.max_dim and w > args.max_dim:
-            img = self.resize(img, args.max_dim)
+        if h > args.max_img_dim or w > args.max_img_dim:
+            img = self.resize(img, args.max_img_dim)
 
         logging.debug('Shape after resize: {}'.format(img.shape))
 
@@ -46,8 +46,9 @@ class Pipeline:
         coarse_preds = self.coarse_stage.pred(img)   
         instances = self.coarse_stage.get_instances(img, coarse_preds)
         subj, size = self.coarse_stage.get_subj_mask(coarse_preds)
-        logging.debug('Subject size is {}'.format(size))
+        logging.debug('Subject size is {} pixels'.format(size))
         end = time.time()
+        
         logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
         self.save(instances, args.img_file, 'instance_preds', args.instance_preds_dir) 
         self.save(subj.astype(int)*255, args.img_file, 'subj_pred', args.subj_masks_dir)
@@ -58,13 +59,14 @@ class Pipeline:
         logging.debug('Trimap stage takes: {} seconds'.format(end - start))
         self.save(trimap*255, args.img_file, 'trimap', args.trimaps_dir)
 
-
         start = time.time()
-        matte = self.refinement_stage.process(trimap, img, img_size_orig)
+        fg, alpha, matte = self.refinement_stage.process(trimap, img, img_size_orig)
         end = time.time()
         logging.debug('Refinement stage takes: {} seconds!'.format(end - start))
-        self.save(matte*255, args.img_file, 'matte', args.final_mattes_dir)
-        
+        self.save(alpha*255, args.img_file, 'alpha', args.alphas_dir)
+        self.save(fg*255, args.img_file, 'foreground', args.fgs_dir)
+        self.save(matte*255, args.img_file, 'matte', args.final_mattes_dir)        
+    
     
     def resize(self, img, dim_max=1000):
         (h, w) = img.shape[:2]

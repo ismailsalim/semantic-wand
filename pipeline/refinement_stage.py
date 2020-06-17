@@ -39,15 +39,18 @@ class RefinementStage:
         img = img/255.0
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
-        
-        h, w = target_size[:2]
-        fg = cv2.resize(fg, (w,h), interpolation=cv2.INTER_LANCZOS4)
-        alpha = cv2.resize(alpha, (w,h), interpolation=cv2.INTER_NEAREST)
-        
         matte = fg*alpha[:, :, None]
         matte = cv2.cvtColor(matte, cv2.COLOR_RGB2RGBA) 
         matte[:, :, 3] = alpha
-        return matte
+
+        # h, w = target_size[:2]
+        # fg_resized = cv2.resize(fg, (w,h), interpolation=cv2.INTER_LANCZOS4)
+        # alpha_resized = cv2.resize(alpha, (w,h), interpolation=cv2.INTER_NEAREST)
+        # matte_resized = fg_resized*alpha_resized[:, :, None]
+        # matte_resized = cv2.cvtColor(matte_resized, cv2.COLOR_RGB2RGBA) 
+        # matte_resized[:, :, 3] = alpha_resized
+
+        return fg, alpha, matte
         
 
     def pred(self, img, trimap, model):
