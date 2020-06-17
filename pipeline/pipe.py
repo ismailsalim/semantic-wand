@@ -24,7 +24,7 @@ class Pipeline:
         if self.img is None:
             raise ImageNotFoundError
         
-        self.scale = args.max_img_dim
+        self.max_img_dim = args.max_img_dim
 
         # configure directories for saving results
         self.instances = args.instance_preds_dir
@@ -46,7 +46,7 @@ class Pipeline:
         
         # rescale according to maximum image dimension specified
         h, w = self.img.shape[:2]
-        if h > self.scale or w > self.scale:
+        if h > self.max_img_dim or w > self.max_img_dim:
             self.img = self.rescale(self.img)
             logging.debug('Resizing to: {}'.format(self.img.shape))
 
