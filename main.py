@@ -8,7 +8,7 @@ def main():
     parser = argparse.ArgumentParser()
     
     # for image specification
-    parser.add_argument('img_file',
+    parser.add_argument('img_filename',
                         help='the name of a specific image to be processed')
     parser.add_argument('--max_img_dim', default=1500,
                         help='Number of pixels that the image\'s maximum dimension is scaled to')
@@ -49,7 +49,7 @@ def main():
 
     pipeline = Pipeline(args) 
 
-    pipeline.process(args)
+    pipeline.process()
 
 if __name__ == '__main__':
     main()
