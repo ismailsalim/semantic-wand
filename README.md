@@ -1,5 +1,4 @@
 # Semantic Wand: A Tool For Natural Image Object Extraction
-![](./examples/1_input_images/furry-dog.jpg | width=100) ![](./examples/2_instance_preds/furry-dog-instance-preds.png | width=100) ![](./examples/3_subj_mask_preds/furry-dog_subj_pred.png | width=100) ![](./examples/4_trimaps/furry-dog_trimap.jpg | width=100) ![](./examples/5_alphas/furry-dog_alpha.png | width=100) ![](./examples/6_foregrounds/furry-dog_foreground.png =150x) ![](./examples/7_final_mattes/furry-dog_matte.png | width=100)
 
 ## Setting up an environment
 The tool is built using Python 3.6 and relies on PyTorch 1.4.0+. The following command installs all the necessary packages:
