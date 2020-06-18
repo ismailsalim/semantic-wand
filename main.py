@@ -44,6 +44,8 @@ def main():
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
                         help='Size of kernel used for trimap erosion/dilation')
+    parser.add_argument('--iterations', type=int, default=1,
+                        help='Number of iterations for alpha/trimap feedback loop')
 
     args = parser.parse_args()
 

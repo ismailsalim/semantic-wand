@@ -17,6 +17,13 @@ import numpy as np
 import cv2
 
 
+class ImageNotFoundError(Exception):
+    """Thrown when image file isn't/can't be read"""
+    def __init__(self):
+        msg = 'Image specified not found!'
+        super(ImageNotFoundError, self).__init__(msg)
+    
+
 class Pipeline:
     def __init__(self, args):
         self.input_file = args.img_filename
@@ -24,7 +31,9 @@ class Pipeline:
         if self.img is None:
             raise ImageNotFoundError
         
-        self.max_img_dim = args.max_img_dim
+        self.max_img_dim = args.max_img_dim # image size
+
+        self.iterations = args.iterations # trimap/alpha feedback loops
 
         # configure directories for saving results
         self.instances = args.instance_preds_dir
@@ -36,7 +45,7 @@ class Pipeline:
 
         # instantiate pipeline stages
         self.coarse_stage = CoarseStage(args.coarse_config, args.coarse_thresh)
-        self.trimap_stage = TrimapStage(args.kernel_scale_factor, args.kernel_shape)
+        self.trimap_stage = TrimapStage(args.kernel_scale_factor, args.kernel_shape, self.iterations)
         self.refinement_stage = RefinementStage(args.matting_weights)
 
 
@@ -52,10 +61,11 @@ class Pipeline:
 
         subj, size = self.to_coarse_stage()
 
-        trimap = self.to_trimap_stage(subj, size)
+        # trimap = self.to_trimap_stage(subj, size)
+        # self.to_refinement_stage(trimap, self.img)  
 
-        self.to_refinement_stage(trimap, self.img)      
-    
+        self.to_matting_loop(subj, size, 1)
+
     
     def to_coarse_stage(self):
         start = time.time()
@@ -73,20 +83,30 @@ class Pipeline:
 
         return subj, size
     
+    
+    def to_matting_loop(self, coarse_mask, size, iteration):
+        trimap = self.to_trimap_stage(coarse_mask, size, iteration)
+        fg, alpha, matte = self.to_refinement_stage(trimap, self.img, iteration)
+        
+        if iteration < self.iterations:
+            self.to_matting_loop(alpha, size, iteration+1)
 
-    def to_trimap_stage(self, subj, size):
+        return fg, alpha, matte
+
+
+    def to_trimap_stage(self, subj, size, iteration):
         start = time.time()
         
-        trimap = self.trimap_stage.process(subj, size)
+        trimap = self.trimap_stage.process(subj, size, iteration)
         
         end = time.time()
         logging.debug('Trimap stage takes: {} seconds'.format(end - start))
 
-        self.save(trimap*255, 'trimap', self.trimaps)
+        self.save(trimap*255, 'trimap_{}'.format(iteration), self.trimaps)
         return trimap
     
 
-    def to_refinement_stage(self, trimap, img):
+    def to_refinement_stage(self, trimap, img, iteration):
         start = time.time()
         
         fg, alpha = self.refinement_stage.process(trimap, img)         
@@ -96,9 +116,11 @@ class Pipeline:
         end = time.time()
         logging.debug('Refinement stage takes: {} seconds!'.format(end - start))
 
-        self.save(alpha*255, 'alpha', self.alphas)
-        self.save(fg*255, 'foreground', self.fgs)
-        self.save(matte*255, 'matte', self.mattes)  
+        self.save(alpha*255, 'alpha_{}'.format(iteration), self.alphas)
+        self.save(fg*255, 'foreground_{}'.format(iteration), self.fgs)
+        self.save(matte*255, 'matte_{}'.format(iteration), self.mattes)  
+
+        return fg, alpha, matte
 
 
     def rescale(self, img):
@@ -120,9 +142,3 @@ class Pipeline:
         cv2.imwrite(os.path.join(to_dir, output_file_name), img)
 
 
-class ImageNotFoundError(Exception):
-    """Thrown when image file isn't/can't be read"""
-    def __init__(self):
-        msg = 'Image specified not found!'
-        super(ImageNotFoundError, self).__init__(msg)
-    
