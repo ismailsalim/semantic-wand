@@ -69,9 +69,9 @@ class Pipeline:
         logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
         
         self.save(instances, 'instance_preds', self.instances) 
-        self.save(subj.astype(int)*255, 'subj_pred', self.subjs)
+        self.save(subj*255, 'subj_pred', self.subjs)
 
-        return subj.astype(float), size
+        return subj, size
     
 
     def to_trimap_stage(self, subj, size):
@@ -89,7 +89,9 @@ class Pipeline:
     def to_refinement_stage(self, trimap, img):
         start = time.time()
         
-        fg, alpha, matte = self.refinement_stage.process(trimap, img)
+        fg, alpha = self.refinement_stage.process(trimap, img)         
+        matte = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA) 
+        matte[:, :, 3] = alpha
         
         end = time.time()
         logging.debug('Refinement stage takes: {} seconds!'.format(end - start))
