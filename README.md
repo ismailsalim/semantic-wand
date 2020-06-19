@@ -20,13 +20,10 @@ For easiest use, keep the repo in the following structure:
 ```bash
 .
 ├── examples/
-│   ├── 1_input_images # directory containing input images
-│   ├── 2_instance_preds
-│   ├── 3_subj_mask_preds
-│   ├── 4_trimaps
-│   ├── 5_alphas
-│   ├── 6_foregrounds
-│   └── 7_final_mattes
+│   ├── img_id_1 # directory containing input image (with same identifier)
+|   |    └── img_id_1.ext # .png or .jpg
+|   └── img_id_2
+|        └── img_id_2.ext
 ├── main.py
 ├── matting_network
 │   ├── FBA.pth  # pre-trained matting model
@@ -42,18 +39,28 @@ For easiest use, keep the repo in the following structure:
 
 ### Example usage:
 ```bash
-# This finds donkey.png in ./examples/1_input_images/ using the default Mask R-CNN pre-trained model.
+# This finds donkey.png in ./examples/donkey/ and feeds the image into the pipeline
+# using the default Mask R-CNN pre-trained model.
 python3 main.py donkey.png
 
-# This uses a non-default model from Detectron2
+# This performs two alpha/matting iterations in the feedback loop (both intermediary
+# results will be saved).
+python3 main.py donkey.png --iterations=2
+
+# This uses the non-default model from Detectron2. Format follows directory structure
+# in the Detectron2 source code below.
+# https://github.com/facebookresearch/detectron2/tree/master/configs
 python3 main.py donkey.png --coarse_config=COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
-# This changes the maximum dimension of the image fed into the pipeline to 3000 pixels (preserving the aspect ratio). 
-# To maintain the original input image size, make this value bigger than the largest dimension of the input image.
+# This changes the maximum dimension of the image fed into the pipeline to 3000 pixels 
+# (preserving the aspect ratio). 
+# To maintain the original input image size, make this value bigger than the largest 
+# dimension of the input image.
 python3 main.py donkey.png --max_img_dim=3000
 
 # This changes the scale factor applied for calculating the kernel size to 20000. 
-# A larger value leads to a smaller kernel size and less erosion/dilation during the trimap stage. 
-# (This will be scrapped soon but it's interested to play around with).
+# A larger value leads to a smaller kernel size and less erosion/dilation during the 
+# trimap stage. 
+# (This will be scrapped soon but it's interesting to play around with).
 python3 main.py donkey.png --kernel_scale_factor=20000
 ```
