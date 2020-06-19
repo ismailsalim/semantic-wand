@@ -15,7 +15,7 @@ class CoarseStage:
         self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
         self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfg)
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = thresh
-
+        # self.cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.9]
 
     def pred(self, img):
         predictor = DefaultPredictor(self.cfg)

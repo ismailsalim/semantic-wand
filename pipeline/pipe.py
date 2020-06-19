@@ -27,21 +27,23 @@ class ImageNotFoundError(Exception):
 class Pipeline:
     def __init__(self, args):
         self.input_file = args.img_filename
-        self.img = cv2.imread(os.path.join(args.images_dir, self.input_file)) 
+        self.img_id = os.path.splitext(self.input_file)[0]
+        
+        if args.img_dir is None:
+            self.img_dir = os.path.join('./examples', self.img_id)
+        else:
+            self.img_dir = args.img_dir
+
+        self.img = cv2.imread(os.path.join(self.img_dir, self.input_file))
         if self.img is None:
             raise ImageNotFoundError
         
-        self.max_img_dim = args.max_img_dim # image size
+        self.output_dir = os.path.join(self.img_dir, time.strftime("%d-%m--%H-%M-%S"))
+        os.mkdir(self.output_dir)
+
+        self.max_img_dim = args.max_img_dim # image size fed into pipeline
 
         self.iterations = args.iterations # trimap/alpha feedback loops
-
-        # configure directories for saving results
-        self.instances = args.instance_preds_dir
-        self.subjs = args.subj_masks_dir
-        self.trimaps = args.trimaps_dir
-        self.fgs = args.fgs_dir
-        self.alphas = args.alphas_dir
-        self.mattes = args.final_mattes_dir
 
         # instantiate pipeline stages
         self.coarse_stage = CoarseStage(args.coarse_config, args.coarse_thresh)
@@ -60,10 +62,7 @@ class Pipeline:
             logging.debug('Resizing to: {}'.format(self.img.shape))
 
         subj, size = self.to_coarse_stage()
-
-        # trimap = self.to_trimap_stage(subj, size)
-        # self.to_refinement_stage(trimap, self.img)  
-
+        
         self.to_matting_loop(subj, size, 1)
 
     
@@ -78,13 +77,14 @@ class Pipeline:
         end = time.time()
         logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
         
-        self.save(instances, 'instance_preds', self.instances) 
-        self.save(subj*255, 'subj_pred', self.subjs)
+        self.save(instances, '1_instance_preds') 
+        self.save(subj*255, '2_subj_pred')
 
         return subj, size
     
     
     def to_matting_loop(self, coarse_mask, size, iteration):
+        logging.debug("Starting matting loop iteration 1...")
         trimap = self.to_trimap_stage(coarse_mask, size, iteration)
         fg, alpha, matte = self.to_refinement_stage(trimap, self.img, iteration)
         
@@ -102,7 +102,7 @@ class Pipeline:
         end = time.time()
         logging.debug('Trimap stage takes: {} seconds'.format(end - start))
 
-        self.save(trimap*255, 'trimap_{}'.format(iteration), self.trimaps)
+        self.save(trimap*255, '3_trimap_iter_{}'.format(iteration))
         return trimap
     
 
@@ -116,9 +116,9 @@ class Pipeline:
         end = time.time()
         logging.debug('Refinement stage takes: {} seconds!'.format(end - start))
 
-        self.save(alpha*255, 'alpha_{}'.format(iteration), self.alphas)
-        self.save(fg*255, 'foreground_{}'.format(iteration), self.fgs)
-        self.save(matte*255, 'matte_{}'.format(iteration), self.mattes)  
+        self.save(alpha*255, '4_alpha_iter{}'.format(iteration))
+        self.save(fg*255, '5_foreground__iter{}'.format(iteration))
+        self.save(matte*255, '6_matte_iter{}'.format(iteration))  
 
         return fg, alpha, matte
 
@@ -136,9 +136,8 @@ class Pipeline:
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
     
-    def save(self, img, output_type, to_dir):
-        output_file_name = '{0}_{1}{2}'.format(os.path.splitext(self.input_file)[0], 
-                                               output_type, '.png')
-        cv2.imwrite(os.path.join(to_dir, output_file_name), img)
+    def save(self, img, output_type):
+        output_file_name = '{0}_{1}{2}'.format(self.img_id, output_type, '.png')
+        cv2.imwrite(os.path.join(self.output_dir, output_file_name), img)
 
 

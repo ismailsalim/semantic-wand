@@ -3,6 +3,7 @@ from pipeline.pipe import Pipeline
 
 # system libraries
 import argparse
+import os
 
 def main():
     parser = argparse.ArgumentParser()
@@ -10,24 +11,10 @@ def main():
     # for image specification
     parser.add_argument('img_filename',
                         help='the name of a specific image to be processed')
+    parser.add_argument('--img_dir', 
+                        help='where input image and results are stored (default finds dir with same name as filename in .examples/)')
     parser.add_argument('--max_img_dim', type=int, default=1500,
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
-    
-    # for loading images and saving results
-    parser.add_argument('--images_dir', default='./examples/1_input_images', 
-                        help='directory of the input image')
-    parser.add_argument('--instance_preds_dir', default='./examples/2_instance_preds', 
-                        help='directory to save intermediate coarse instance segementation prediction')
-    parser.add_argument('--subj_masks_dir', default='./examples/3_subj_mask_preds', 
-                        help='directory to save intermediate coarse subject mask prediction')
-    parser.add_argument('--trimaps_dir', default='./examples/4_trimaps', 
-                        help='directory to save intermediate trimap')
-    parser.add_argument('--alphas_dir', default='./examples/5_alphas', 
-                        help='directory to save intermediate matting alpha prediction')
-    parser.add_argument('--fgs_dir', default='./examples/6_foregrounds', 
-                        help='directory to save intermediate matting foreground prediction')
-    parser.add_argument('--final_mattes_dir', default='./examples/7_final_mattes', 
-                        help='directory to save final matting output')
 
     # for coarse stage specification
     parser.add_argument('--coarse_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
