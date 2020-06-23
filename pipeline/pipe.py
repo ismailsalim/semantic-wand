@@ -1,5 +1,5 @@
 # local application libraries
-from pipeline.coarse_stage import CoarseStage
+from pipeline.masking_stage import MaskingStage
 from pipeline.trimap_stage import TrimapStage
 from pipeline.refinement_stage import RefinementStage
 
@@ -45,8 +45,10 @@ class Pipeline:
 
         self.iterations = args.iterations # trimap/alpha feedback loops
 
+        self.mask_thresholds = [args.unknown_thresh, args.def_fg_thresh]
+
         # instantiate pipeline stages
-        self.coarse_stage = CoarseStage(args.coarse_config, args.coarse_thresh)
+        self.masking_stage = MaskingStage(args.coarse_config, args.coarse_thresh, self.mask_thresholds)
         self.trimap_stage = TrimapStage(args.kernel_scale_factor, args.kernel_shape, self.iterations)
         self.refinement_stage = RefinementStage(args.matting_weights)
 
@@ -61,31 +63,34 @@ class Pipeline:
             self.img = self.rescale(self.img)
             logging.debug('Resizing to: {}'.format(self.img.shape))
 
-        subj, size = self.to_coarse_stage()
+        unknown_mask, fg_mask, size = self.to_masking_stage()
         
-        self.to_matting_loop(subj, size, 1)
+        self.to_matting_loop(fg_mask, unknown_mask, size, 1)
 
     
-    def to_coarse_stage(self):
+    def to_masking_stage(self):
         start = time.time()
+        # instance_preds = self.masking_stage.pred(self.img, self.mask_thresholds)   
+        # instances_vis = self.masking_stage.visualise(self.img, instance_preds, mask_thresholds[0])
+        # instance_preds = self.masking_stage.pred(self.img)
+        unknown_mask, fg_mask, size = self.masking_stage.get_subject_masks(self.img)
+        unknown_mask_vis = self.masking_stage.visualise(self.img, self.mask_thresholds[0])
+        fg_mask_vis = self.masking_stage.visualise(self.img, self.mask_thresholds[1])
+        
+        end = time.time()
 
-        coarse_preds = self.coarse_stage.pred(self.img)   
-        instances = self.coarse_stage.get_instances(self.img, coarse_preds)
-        subj, size = self.coarse_stage.get_subj_mask(coarse_preds)
+        logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
         logging.debug('Subject size is {} pixels'.format(size))
 
-        end = time.time()
-        logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
-        
-        self.save(instances, '1_instance_preds') 
-        self.save(subj*255, '2_subj_pred')
+        self.save(unknown_mask_vis, '1_unknown_mask') 
+        self.save(fg_mask_vis, '2_fg_mask')
 
-        return subj, size
+        return unknown_mask, fg_mask, size
     
     
-    def to_matting_loop(self, coarse_mask, size, iteration):
-        logging.debug("Starting matting loop iteration 1...")
-        trimap = self.to_trimap_stage(coarse_mask, size, iteration)
+    def to_matting_loop(self, fg_mask, unknown_mask, size, iteration):
+        logging.debug("Matting loop iteration {}".format(iteration))
+        trimap = self.to_trimap_stage(fg_mask, unknown_mask, size, iteration)
         fg, alpha, matte = self.to_refinement_stage(trimap, self.img, iteration)
         
         if iteration < self.iterations:

@@ -16,11 +16,15 @@ def main():
     parser.add_argument('--max_img_dim', type=int, default=1500,
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
 
-    # for coarse stage specification
+    # for masking stage specification
     parser.add_argument('--coarse_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
     parser.add_argument('--coarse_thresh', type=float, default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
+    parser.add_argument('--unknown_thresh', type=float, default=0.01, 
+                    help='Mask R-CNN pixel probability threshold used for unknown region')
+    parser.add_argument('--def_fg_thresh', type=float, default=0.99, 
+                    help='Mask R-CNN pixel probability threshold used for definite foreground')
 
     # for trimap stage specification
     parser.add_argument('--kernel_scale_factor', type=int, default=10000, 
