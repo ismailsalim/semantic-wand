@@ -99,10 +99,10 @@ class Pipeline:
         return fg, alpha, matte
 
 
-    def to_trimap_stage(self, subj, size, iteration):
+    def to_trimap_stage(self, fg_mask, unknown_mask, size, iteration):
         start = time.time()
         
-        trimap = self.trimap_stage.process(subj, size, iteration)
+        trimap = self.trimap_stage.process(fg_mask, unknown_mask, size, iteration)
         
         end = time.time()
         logging.debug('Trimap stage takes: {} seconds'.format(end - start))
