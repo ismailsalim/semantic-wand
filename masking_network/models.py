@@ -124,25 +124,21 @@ class ModifiedRCNN(nn.Module):
 
         results = results[output_boxes.nonempty()]
 
-        # if results.has("pred_masks"):
-        #     for thresh in mask_thresholds:
-        #         field = "mask" + str(thresh)
-        #         instances_masks = retry_if_cuda_oom(paste_masks_in_image)(
-        #         results.pred_masks[:, 0, :, :],  # N, 1, M, M
-        #         results.pred_boxes,
-        #         results.image_size,
-        #         thresh,
-        #         )
-        #         results.set(field, instances_masks)
-
         for thresh in mask_thresholds:
             field = "pred_mask_" + str(thresh)
-            instances_masks = retry_if_cuda_oom(paste_masks_in_image)(
+            trimap_mask = retry_if_cuda_oom(paste_masks_in_image)(
             results.pred_masks[:, 0, :, :],  # N, 1, M, M
             results.pred_boxes,
             results.image_size,
             thresh,
             )
-            results.set(field, instances_masks)
+            results.set(field, trimap_mask)
 
+        results.pred_masks = retry_if_cuda_oom(paste_masks_in_image)(
+        results.pred_masks[:, 0, :, :],  # N, 1, M, M
+        results.pred_boxes,
+        results.image_size,
+        threshold=0.5,
+        )
+        
         return results

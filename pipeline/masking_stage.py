@@ -26,16 +26,26 @@ class MaskingStage:
 
         self.results = None
 
-    
-    def get_subject_masks(self, img):
+
+    def pred(self, img):   
         predictor = Predictor(self.cfg, self.mask_thresholds)
         preds = predictor(img)
-
+        
         # only looking at first image in preds output for now
-        instances = preds[0]['instances']
+        instances = preds[0]['instances'].to('cpu')
         if len(instances) == 0:
             raise InstanceError
-        
+
+        return instances
+
+
+    def visualise_instances(self, img, instances):
+        v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
+        v = v.draw_instance_predictions(instances)
+        return v.get_image()[:, :, ::-1]
+
+
+    def get_subject_masks(self, instances):
         max_area = max(instances.get('pred_boxes').area())
         main_subject = None
         for i in range(len(instances)):
@@ -53,7 +63,7 @@ class MaskingStage:
         return masks[0], masks[1], size
 
 
-    def visualise(self, img, mask_threshold):
+    def visualise_mask(self, img, mask_threshold):
         v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
         
         boxes = self.results.pred_boxes

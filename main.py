@@ -21,7 +21,7 @@ def main():
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
     parser.add_argument('--coarse_thresh', type=float, default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
-    parser.add_argument('--unknown_thresh', type=float, default=0.01, 
+    parser.add_argument('--unknown_thresh', type=float, default=0.3, 
                     help='Mask R-CNN pixel probability threshold used for unknown region')
     parser.add_argument('--def_fg_thresh', type=float, default=0.99, 
                     help='Mask R-CNN pixel probability threshold used for definite foreground')

@@ -38,8 +38,10 @@ class Pipeline:
         if self.img is None:
             raise ImageNotFoundError
         
-        self.output_dir = os.path.join(self.img_dir, time.strftime("%d-%m--%H-%M-%S"))
+        dir_id = time.strftime("%d-%m--%H-%M-%S")
+        self.output_dir = os.path.join(self.img_dir, dir_id)
         os.mkdir(self.output_dir)
+        logging.debug('\nSaving to: {}'.format(dir_id))
 
         self.max_img_dim = args.max_img_dim # image size fed into pipeline
 
@@ -54,7 +56,7 @@ class Pipeline:
 
 
     def process(self):
-        logging.debug('\nImage file: {}'.format(self.input_file))
+        logging.debug('Image file: {}'.format(self.input_file))
         logging.debug('Image shape: {}'.format(self.img.shape))
         
         # rescale according to maximum image dimension specified
@@ -70,18 +72,19 @@ class Pipeline:
     
     def to_masking_stage(self):
         start = time.time()
-        # instance_preds = self.masking_stage.pred(self.img, self.mask_thresholds)   
-        # instances_vis = self.masking_stage.visualise(self.img, instance_preds, mask_thresholds[0])
-        # instance_preds = self.masking_stage.pred(self.img)
-        unknown_mask, fg_mask, size = self.masking_stage.get_subject_masks(self.img)
-        unknown_mask_vis = self.masking_stage.visualise(self.img, self.mask_thresholds[0])
-        fg_mask_vis = self.masking_stage.visualise(self.img, self.mask_thresholds[1])
+        instance_preds = self.masking_stage.pred(self.img)   
+        instances_vis = self.masking_stage.visualise_instances(self.img, instance_preds)
+
+        unknown_mask, fg_mask, size = self.masking_stage.get_subject_masks(instance_preds)
+        unknown_mask_vis = self.masking_stage.visualise_mask(self.img, self.mask_thresholds[0])
+        fg_mask_vis = self.masking_stage.visualise_mask(self.img, self.mask_thresholds[1])
         
         end = time.time()
 
         logging.debug('Coarse stage takes: {} seconds!'.format(end - start))
         logging.debug('Subject size is {} pixels'.format(size))
 
+        self.save(instances_vis, '0_instances')
         self.save(unknown_mask_vis, '1_unknown_mask') 
         self.save(fg_mask_vis, '2_fg_mask')
 
