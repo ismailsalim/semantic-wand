@@ -39,12 +39,6 @@ class MaskingStage:
         return instances
 
 
-    def visualise_instances(self, img, instances):
-        v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
-        v = v.draw_instance_predictions(instances)
-        return v.get_image()[:, :, ::-1]
-
-
     def get_subject_masks(self, instances):
         max_area = max(instances.get('pred_boxes').area())
         main_subject = None
@@ -63,15 +57,25 @@ class MaskingStage:
         return masks[0], masks[1], size
 
 
-    def visualise_mask(self, img, mask_threshold):
+    def visualise_instances(self, img, instances):
+        v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
+        v = v.draw_instance_predictions(instances)
+        return v.get_image()[:, :, ::-1]
+
+
+    def visualise_mask(self, img, mask):
         v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
         
         boxes = self.results.pred_boxes
         scores = self.results.scores
         classes = self.results.pred_classes
-        labels = _create_text_labels(classes, scores, v.metadata.get("thing_classes", None))
+        labels = _create_text_labels(classes, scores, v.metadata.get('thing_classes', None))
 
-        mask_id = "pred_mask_"+str(mask_threshold)
+        if mask == 'unknown':
+            mask_id = 'pred_mask_'+str(self.mask_thresholds[0])
+        elif mask == 'fg':
+            mask_id = 'pred_mask_'+str(self.mask_thresholds[1])
+
         masks = np.asarray(self.results.get(mask_id))
         masks = [GenericMask(x, v.output.height, v.output.width) for x in masks]
         
@@ -90,7 +94,7 @@ class MaskingStage:
 
 
 class InstanceError(Exception):
-    """Thrown when no instances can be found by Mask R-CNN"""
+    '''Thrown when no instances can be found by Mask R-CNN'''
     def __init__(self):
         msg = 'No instances are found during coarse stage!'
         super(InstanceError, self).__init__(msg)

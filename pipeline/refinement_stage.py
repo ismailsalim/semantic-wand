@@ -39,8 +39,9 @@ class RefinementStage:
         img = img/255.0
     
         fg, alpha = self.pred(img, fba_trimap, self.model)
-
-        return fg, alpha
+        matte = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA) 
+        matte[:, :, 3] = alpha
+        return fg, alpha, matte
         
 
     def pred(self, img, trimap, model):
