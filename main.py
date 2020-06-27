@@ -8,6 +8,10 @@ import logging
 import cv2
 
 def main():
+    logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+    logging.getLogger('matplotlib.font_manager').disabled = True
+
     parser = argparse.ArgumentParser()
     
     # for image specification
@@ -56,8 +60,6 @@ def main():
     results = pipeline(img)
 
     save_results(results, img_id, output_dir)
-
-    a = 5
 
 
 def setup_io(img_file, img_dir):

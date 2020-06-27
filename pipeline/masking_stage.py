@@ -34,7 +34,7 @@ class MaskingStage:
         # only looking at first image in preds output for now
         instances = preds[0]['instances'].to('cpu')
         if len(instances) == 0:
-            raise InstanceError
+            raise ValueError("No instances found during masking stage!")
 
         return instances
 
@@ -48,13 +48,17 @@ class MaskingStage:
                 self.results = main_subject.to('cpu')
                 break    
         
-        size = main_subject.get('pred_boxes').area().cpu().item()
+        # size = main_subject.get('pred_boxes').area().cpu().item()
+        pred_box = main_subject.get('pred_boxes').tensor.cpu().numpy()[0]
+        height = pred_box[3] - pred_box[1]
+        width = pred_box[2] - pred_box[0]
+        box_dim = (height, width) 
 
         mask_ids = ['pred_mask_'+str(thresh) for thresh in self.mask_thresholds]
         masks = [main_subject.get(mask_id).cpu().numpy().squeeze().astype(float)
                 for mask_id in mask_ids]
         
-        return masks[0], masks[1], size
+        return masks[0], masks[1], box_dim
 
 
     def visualise_instances(self, img, instances):
@@ -92,10 +96,4 @@ class MaskingStage:
 
         return v.output.get_image()[:, :, ::-1]
 
-
-class InstanceError(Exception):
-    '''Thrown when no instances can be found by Mask R-CNN'''
-    def __init__(self):
-        msg = 'No instances are found during coarse stage!'
-        super(InstanceError, self).__init__(msg)
 

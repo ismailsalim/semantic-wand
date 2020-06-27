@@ -17,20 +17,21 @@ class TrimapStage:
         trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
         return trimap
 
-    def process_alpha(self, alpha, size, iteration):
-        ksize = int(np.ceil(size/(self.k_scale_f*iteration))) // 2 * 2 + 1 
-
+    def process_alpha(self, alpha, box_dim, iteration):
         logging.debug("Kernel scale factor: {}".format(self.k_scale_f))
         logging.debug("Kernel shape: {}".format(self.k_shape))
-        logging.debug("Mask size: {}".format(size))
-        logging.debug("Kernel size: {}".format(ksize))
+        logging.debug("Box dim: {}".format(box_dim))
 
-        kernel = cv2.getStructuringElement(getattr(cv2, self.k_shape), (ksize,ksize))                            
+        avg_dim = sum(box_dim)/2
+        kernel = cv2.getStructuringElement(getattr(cv2, self.k_shape), (3, 3))                            
 
-        dilated = cv2.dilate(alpha, kernel, iterations=1)
-        eroded = cv2.erode(alpha, kernel, iterations=1)
+        dilated = cv2.dilate(alpha, kernel, iterations=int(0.01*avg_dim))
+        eroded = cv2.erode(alpha, kernel, iterations=int(0.01*avg_dim))
+        logging.debug("Erode/Dilate iterations: {}".format(int(0.01*avg_dim)))
 
         trimap = np.zeros(alpha.shape, dtype='float64')
         trimap.fill(0.5)
         trimap[eroded==1.0] = 1.0
         trimap[dilated==0.0] = 0.0
+
+        return trimap
