@@ -1,5 +1,6 @@
 # system libraries
 import logging
+import time
 
 # external libraries
 import numpy as np
@@ -7,8 +8,9 @@ import cv2
 
 
 class TrimapStage: 
-    def __init__(self, k_scale_f, k_shape):
-        self.k_scale_f = k_scale_f 
+    def __init__(self, dilation_sf, k_size, k_shape):
+        self.dilation_sf = dilation_sf 
+        self.k_size = k_size
         self.k_shape = k_shape      
 
     def process_masks(self, fg_mask, unknown_mask):       
@@ -17,21 +19,35 @@ class TrimapStage:
         trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
         return trimap
 
-    def process_alpha(self, alpha, box_dim, iteration):
-        logging.debug("Kernel scale factor: {}".format(self.k_scale_f))
-        logging.debug("Kernel shape: {}".format(self.k_shape))
-        logging.debug("Box dim: {}".format(box_dim))
+    def process_alpha(self, alpha, trimap, level):
+        start = time.time()
 
-        avg_dim = sum(box_dim)/2
-        kernel = cv2.getStructuringElement(getattr(cv2, self.k_shape), (3, 3))                            
+        logging.debug("Dilation Scale Factor {}".format(self.dilation_sf))
+        # logging.debug("Kernel size: {}". format(self.k_size))
+        logging.debug("Kernel shape: {}".format(self.k_shape))        
 
-        dilated = cv2.dilate(alpha, kernel, iterations=int(0.01*avg_dim))
-        eroded = cv2.erode(alpha, kernel, iterations=int(0.01*avg_dim))
-        logging.debug("Erode/Dilate iterations: {}".format(int(0.01*avg_dim)))
+        # kernel = cv2.getStructuringElement(getattr(cv2, self.k_shape), 
+        #                                     (self.k_size, self.k_size))                            
 
-        trimap = np.zeros(alpha.shape, dtype='float64')
-        trimap.fill(0.5)
-        trimap[eroded==1.0] = 1.0
-        trimap[dilated==0.0] = 0.0
+        # iterations = int(self.dilation_sf*level)
+        # logging.debug("Dilation iterations: {}".format(iterations))       
 
+        # dilated = cv2.dilate(alpha, kernel, iterations=iterations)
+        # eroded = cv2.erode(alpha, kernel, iterations=iterations)
+        # logging.debug("Dilate iterations: {}".format(iterations))
+        
+        # trimap = np.zeros(alpha.shape, dtype='float64')
+        # trimap[dilated==1.0] = 0.5
+        # trimap[alpha==1.0] = 1.0
+        # # trimap.fill(0.5)
+        # # trimap[alpha==0]
+
+        # trimap = np.zeros(alpha.shape, dtype='float64')
+        # trimap[dilated > 0] = 0.5
+        # trimap[np.logical_and(alpha>0, alpha<1)] = 0.5
+        trimap[alpha==0.0] = 0.0
+        trimap[alpha==1.0] = 1.0
+
+        end = time.time()
+        logging.debug('... took {} seconds'.format(end-start))
         return trimap

@@ -27,14 +27,16 @@ def main():
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
     parser.add_argument('--mask_thresh', type=float, default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
-    parser.add_argument('--unknown_thresh', type=float, default=0.3, 
+    parser.add_argument('--unknown_thresh', type=float, default=0.1, 
                     help='Mask R-CNN pixel probability threshold used for unknown region')
     parser.add_argument('--def_fg_thresh', type=float, default=0.99, 
                     help='Mask R-CNN pixel probability threshold used for definite foreground')
 
     # for trimap stage specification
-    parser.add_argument('--kernel_scale_factor', type=int, default=10000, 
+    parser.add_argument('--dilation_sf', type=float, default=0.01, 
                         help='Number to divide box area by to obtain kernel size')
+    parser.add_argument('--kernel_size', type=int, default=3, 
+                        help='Dimension of dilation kernel (must be odd)')                      
     parser.add_argument('--kernel_shape', default='MORPH_RECT', 
                         help='OpenCV kernel shape type for erosion/dilation')
 
@@ -50,7 +52,8 @@ def main():
                         mask_config = args.mask_config,
                         mask_thresh = args.mask_thresh,
                         trimap_thresholds = [args.unknown_thresh, args.def_fg_thresh],
-                        kernel_scale_factor = args.kernel_scale_factor,
+                        dilation_sf = args.dilation_sf,
+                        kernel_size = args.kernel_size,
                         kernel_shape = args.kernel_shape,
                         matting_weights = args.matting_weights,
                         iterations = args.iterations) 
