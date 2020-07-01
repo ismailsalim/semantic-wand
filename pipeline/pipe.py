@@ -13,12 +13,12 @@ class Pipeline:
     def __init__(self, max_img_dim = 1000,
                         mask_config = 'Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         mask_thresh = 0.8,
-                        trimap_thresholds = [0.2, 0.9],
+                        trimap_thresholds = [0.2, 0.99],
                         dilation_sf = 1000,
                         kernel_size = 3,
                         kernel_shape = 'MORPH_RECT',
                         matting_weights = './matting_network/FBA.pth',
-                        iterations = 0):
+                        iterations = 3):
         self.max_img_dim = max_img_dim
         self.masking_stage = MaskingStage(mask_config, mask_thresh, trimap_thresholds)
         self.trimap_stage = TrimapStage(dilation_sf, kernel_size, kernel_shape)
