@@ -70,11 +70,13 @@ class App(ttk.Frame):
         if self.controller.matte is None:
             return
 
-        filename = filedialog.asksaveasfile(parent=self.root, 
-                                            initialfile='{}.png'.format(self.controller.filename),
+        print("MATTE:", self.controller.matte)
+
+        filename = filedialog.asksaveasfilename(parent=self.root, 
+                                            initialfile='{}_matte'.format(self.controller.filename),
                                             filetypes = [('PNG image', '*.png')],
                                             title = 'Save mask as...')
-
+        cv2.imwrite('{}.png'.format(filename), self.controller.matte)
 
     def process_img(self):
         if self.img_on_canvas:
