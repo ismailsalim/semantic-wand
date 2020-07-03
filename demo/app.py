@@ -8,6 +8,8 @@ import numpy as np
 from demo.controller import Controller
 from demo.canvas import CanvasImage
 
+from pipeline.pipe import Pipeline
+
 class App(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
@@ -16,7 +18,7 @@ class App(tk.Frame):
         self.root.geometry("1200x1000")
         self.root.resizable(width=False, height=False)
 
-        self.controller = Controller(self.update_canvas)
+        self.controller = Controller(Pipeline(), self.update_canvas)
 
         self.add_menu()
         self.add_canvas()
@@ -94,13 +96,13 @@ class App(tk.Frame):
                                             initialfile='{}_matte'.format(self.controller.filename),
                                             filetypes = [('PNG image', '*.png')],
                                             title = 'Save mask as...')
-        cv2.imwrite('{}.png'.format(filename), self.controller.matte)
+        cv2.imwrite(filename, self.controller.matte)
 
 
     def process_img(self):
         if self.img_on_canvas:
-            # self.img_on_canvas.annotations.save('test.png')
-            self.controller.process_img()
+            annotations = self.img_on_canvas.annotations
+            self.controller.process_img(annotations)
         
 
     def update_canvas(self, img, matte=False):

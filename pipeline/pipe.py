@@ -8,6 +8,7 @@ import logging
 from collections import defaultdict
 
 import cv2
+import numpy as np
 
 class Pipeline:
     def __init__(self, max_img_dim = 1000,
@@ -36,8 +37,8 @@ class Pipeline:
                 Same shape as `img`. 
                 Annnotations made by the user to indicate object selection.
                 Foreground pixels represented by 1.
-                Background pixels represented by -1.
-                Unannotated pixels represented by 0.
+                Background pixels represented by 0.
+                Unannotated pixels represented by -1.
         Returns:
             dict(list):
                 Intermediate and final image processing results.
@@ -47,11 +48,21 @@ class Pipeline:
                 * Alpha/Foreground prediction(s)
                 * Matte(s)
         """
-
-        h, w = img.shape[:2]
-        if h > self.max_img_dim or w > self.max_img_dim:
-            img = self.rescale(img) 
+        if annotated_img is not None:
+            assert len(annotated_img.shape) == 2, "Annotation image must be grayscale!"
+            assert img.shape[:2] == annotated_img.shape[:2], "Annotation image and input image must have same (h, w)!" 
+            
+            print(np.unique(annotated_img, return_counts=True))
+            
+            annots = np.array([-1, 0, 1])
+            assert not False in np.in1d(annotated_img, annots), "Anotated image must only contain [-1, 0, 1]"
         
+        h, w = img.shape[:2]
+        if h > self.max_img_dim or w > self.max_img_dim: 
+            img = self.rescale(img) # can limit GPU usage
+            if annotated_img is not None:
+                annotated_img = self.rescale(annotated_img)
+
         unknown_mask, fg_mask, box_dim = self.to_masking_stage(img, annotated_img)
 
         trimap = self.to_trimap_stage(fg_mask, unknown_mask)

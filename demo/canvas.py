@@ -19,7 +19,7 @@ class CanvasImage:
         # reset annotations
         self.last_x = None
         self.last_y = None
-        self.annotations = Image.new('L', (self.imwidth, self.imheight))
+        self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
 
         self.show_img()  
 
@@ -44,6 +44,6 @@ class CanvasImage:
 
     def paint(self, e):
         x, y = e.x, e.y   
-        self.canvas.create_line((self.last_x, self.last_y, x, y), width=1) 
-        self.drawing.line((self.last_x, self.last_y, x, y), fill=255, width=1)
+        self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=1) 
+        self.drawing.line((self.last_x, self.last_y, x, y), fill=255, width=1) # fg marker
         self.last_x, self.last_y = x, y

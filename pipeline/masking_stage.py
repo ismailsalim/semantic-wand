@@ -40,9 +40,9 @@ class MaskingStage:
 
 
     def get_subject(self, instances, annotated_img=None):
-        if annotated_img:
+        if annotated_img is not None:
             instance_masks = instances.get('pred_masks')
-            subject = fg_intersection(instances, annotated_img)
+            subject = self.fg_intersection(instances, annotated_img)
         else: # find instance with largest predicted box area in the image
             idx = instances.get('pred_boxes').area().argmax().item()
             subject = instances[idx]
@@ -64,9 +64,14 @@ class MaskingStage:
     def fg_intersection(self, instances, annotated_img):
         # One instance mask with the largest intesersection with foreground annotated
         # pixels gets selected as the subject (fg pixels annotated as 1)
-        masks = instances.get('pred_masks').cpu().numpy() # boolean array (True -> part of mask)
+        masks = instances.get('pred_masks').cpu().numpy().astype(int) # boolean array (True -> part of mask)
         matched_pixels = [np.sum(m==annotated_img) for m in masks]
         most_matching_idx = matched_pixels.index(max(matched_pixels))
+        print('masks:', masks)
+        print('matched_pixels', matched_pixels)
+        print('most_matching_idx', most_matching_idx)
+        print('instances:', instances)
+        print('instance[most_matching]', instances[most_matching_idx])
         return instances[most_matching_idx]
 
 
