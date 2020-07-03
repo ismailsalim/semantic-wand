@@ -8,11 +8,13 @@ import numpy as np
 from demo.controller import Controller
 from demo.canvas import CanvasImage
 
-class App(ttk.Frame):
+class App(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
         self.root = root
-        root.title('INTERACTIVE DEMO')
+        self.root.title('INTERACTIVE DEMO')
+        self.root.geometry("1200x1000")
+        self.root.resizable(width=False, height=False)
 
         self.controller = Controller(self.update_canvas)
 
@@ -33,13 +35,13 @@ class App(ttk.Frame):
 
 
     def add_canvas(self):
-        self.canvas_frame = tk.LabelFrame(self.root)
+        self.canvas_frame = tk.LabelFrame(self.root, width=800, height=800)
         self.canvas_frame.rowconfigure(0, weight=1)
         self.canvas_frame.columnconfigure(0, weight=1)
 
         self.canvas = tk.Canvas(self.canvas_frame, highlightthickness=0, 
-                                width=1000, height=800)
-        self.canvas.grid(row=0, column=0, sticky='nswe', padx=5, pady=5)
+                                width=800, height=800)
+        self.canvas.grid(row=0, column=0, sticky='NSW', padx=5, pady=5)
 
         self.img_on_canvas = None
 
@@ -59,18 +61,34 @@ class App(ttk.Frame):
             title = 'Select image',
             filetypes=[('Images', '*.jpg *.JPG *.jpeg *.png')])
 
+        # keep name for saving matte later
         img = cv2.imread(filename.name)
         self.controller.filename, _ = os.path.splitext(os.path.basename(filename.name))
-
-        self.controller.set_img(img)
+        
+        # resize image to the fixed canvas size 
+        max_img_dim = min(self.canvas.winfo_width(), self.canvas.winfo_height())
+        rescaled_img = self.rescale_img(img, max_img_dim)
+        
+        self.controller.set_img(rescaled_img)
     
+
+    def rescale_img(self, img, max_img_dim):
+        (h, w) = img.shape[:2]
+
+        if h > w:
+            r = max_img_dim/float(h)
+            dim = (int(w*r), max_img_dim)
+        else:
+            r = self.max_img_dim/float(w)
+            dim = (max_img_dim, int(h*r))
+
+        return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+
 
     def save_matte(self):
         self.menu.focus_set()
         if self.controller.matte is None:
             return
-
-        print("MATTE:", self.controller.matte)
 
         filename = filedialog.asksaveasfilename(parent=self.root, 
                                             initialfile='{}_matte'.format(self.controller.filename),
@@ -78,8 +96,10 @@ class App(ttk.Frame):
                                             title = 'Save mask as...')
         cv2.imwrite('{}.png'.format(filename), self.controller.matte)
 
+
     def process_img(self):
         if self.img_on_canvas:
+            # self.img_on_canvas.annotations.save('test.png')
             self.controller.process_img()
         
 
@@ -87,11 +107,11 @@ class App(ttk.Frame):
         if self.img_on_canvas is None:
             self.img_on_canvas = CanvasImage(self.canvas_frame, self.canvas)
 
-        if matte == False:
+        if not matte: # display input image
             self.img_on_canvas.reload_img(Image.fromarray(img))
-        else:
-            m = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGRA2RGBA))
-            self.img_on_canvas.reload_img(m)
+        else: # display matte
+            matte = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGRA2RGBA))
+            self.img_on_canvas.reload_img(matte)
 
 
 
