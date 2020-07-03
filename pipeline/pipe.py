@@ -27,12 +27,32 @@ class Pipeline:
         self.results = defaultdict(list)
 
 
-    def __call__(self, img):
+    def __call__(self, img, annotated_img=None):
+        """
+        Performs end-to-end matting process.
+        Args:
+            img (numpy array): The image to be processed.
+            annnotated_img (numpy array):
+                Same shape as `img`. 
+                Annnotations made by the user to indicate object selection.
+                Foreground pixels represented by 1.
+                Background pixels represented by -1.
+                Unannotated pixels represented by 0.
+        Returns:
+            dict(list):
+                Intermediate and final image processing results.
+                * Initial instance segmentation
+                * Foreground/Background masks used for initial trimap
+                * Subsequent trimaps (from alpha feedback loop)
+                * Alpha/Foreground prediction(s)
+                * Matte(s)
+        """
+
         h, w = img.shape[:2]
         if h > self.max_img_dim or w > self.max_img_dim:
             img = self.rescale(img) 
         
-        unknown_mask, fg_mask, box_dim = self.to_masking_stage(img)
+        unknown_mask, fg_mask, box_dim = self.to_masking_stage(img, annotated_img)
 
         trimap = self.to_trimap_stage(fg_mask, unknown_mask)
 
@@ -43,14 +63,16 @@ class Pipeline:
         return self.results
 
 
-    def to_masking_stage(self, img):
+    def to_masking_stage(self, img, annotated_img=None):
         start = time.time()
 
-        instance_preds = self.masking_stage.pred(img)
+        instance_preds = self.masking_stage.get_all_instances(img)
         instances_vis = self.masking_stage.visualise_instances(img, instance_preds)
         self.results['instances'] = instances_vis
 
-        unknown_mask, fg_mask, box_dim = self.masking_stage.get_subject_masks(instance_preds)
+        unknown_mask, fg_mask, box_dim = self.masking_stage.get_subject(instance_preds,
+                                                                        annotated_img)
+        
         unknown_mask_vis = self.masking_stage.visualise_mask(img, 'unknown')
         fg_mask_vis = self.masking_stage.visualise_mask(img, 'fg')
         self.results['unknown_mask'] = unknown_mask_vis

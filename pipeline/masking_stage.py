@@ -27,7 +27,7 @@ class MaskingStage:
         self.results = None
 
 
-    def pred(self, img):   
+    def get_all_instances(self, img):   
         predictor = Predictor(self.cfg, self.mask_thresholds)
         preds = predictor(img)
         
@@ -39,26 +39,35 @@ class MaskingStage:
         return instances
 
 
-    def get_subject_masks(self, instances):
-        max_area = max(instances.get('pred_boxes').area())
-        main_subject = None
-        for i in range(len(instances)):
-            if instances[i].get('pred_boxes').area()==max_area:
-                main_subject = instances[i]
-                self.results = main_subject.to('cpu')
-                break    
+    def get_subject(self, instances, annotated_img=None):
+        if annotated_img:
+            instance_masks = instances.get('pred_masks')
+            subject = fg_intersection(instances, annotated_img)
+        else: # find instance with largest predicted box area in the image
+            idx = instances.get('pred_boxes').area().argmax().item()
+            subject = instances[idx]
         
-        # size = main_subject.get('pred_boxes').area().cpu().item()
-        pred_box = main_subject.get('pred_boxes').tensor.cpu().numpy()[0]
+        self.results = subject.to('cpu')
+        
+        pred_box = subject.get('pred_boxes').tensor.cpu().numpy()[0]
         height = pred_box[3] - pred_box[1]
         width = pred_box[2] - pred_box[0]
         box_dim = (height, width) 
 
         mask_ids = ['pred_mask_'+str(thresh) for thresh in self.mask_thresholds]
-        masks = [main_subject.get(mask_id).cpu().numpy().squeeze().astype(float)
+        masks = [subject.get(mask_id).cpu().numpy().squeeze().astype(float)
                 for mask_id in mask_ids]
         
         return masks[0], masks[1], box_dim
+
+
+    def fg_intersection(self, instances, annotated_img):
+        # One instance mask with the largest intesersection with foreground annotated
+        # pixels gets selected as the subject (fg pixels annotated as 1)
+        masks = instances.get('pred_masks').cpu().numpy() # boolean array (True -> part of mask)
+        matched_pixels = [np.sum(m==annotated_img) for m in masks]
+        most_matching_idx = matched_pixels.index(max(matched_pixels))
+        return instances[most_matching_idx]
 
 
     def visualise_instances(self, img, instances):

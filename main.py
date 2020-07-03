@@ -15,10 +15,12 @@ def main():
     parser = argparse.ArgumentParser()
     
     # for image specification
-    parser.add_argument('img_filename',
-                        help='the name of a specific image to be processed')
+    parser.add_argument('img_file',
+                        help='the name of a specific image to be processed (inc. extension)')
+    parser.add_argument('--annotated_file', 
+                    help='the name of a specific annotated image (inc. extension)')
     parser.add_argument('--img_dir', 
-                        help='where input image and results are stored (default finds dir with same name as filename in .examples/)')
+                        help='where input image(s) and results are stored (if not in .examples/img_filename/)')
     parser.add_argument('--max_img_dim', type=int, default=1500,
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
 
@@ -58,14 +60,16 @@ def main():
                         matting_weights = args.matting_weights,
                         iterations = args.iterations) 
 
-    img, img_id, output_dir = setup_io(args.img_filename, args.img_dir)
+    img, annotated_img, img_id, output_dir = setup_io(args.img_file, 
+                                                        args.annotated_file, 
+                                                        args.img_dir)
 
-    results = pipeline(img)
+    results = pipeline(img, annotated_img)
 
     save_results(results, img_id, output_dir)
 
 
-def setup_io(img_file, img_dir):
+def setup_io(img_file, annotated_file, img_dir):
     img_id = os.path.splitext(img_file)[0]  
     if img_dir is None:
         img_dir = os.path.join('./examples', img_id)
@@ -74,11 +78,16 @@ def setup_io(img_file, img_dir):
     if img is None:
         raise ValueError("Image not found!")
     
+    if annotated_file:
+        annotated_img = cv2.imread(os.path.join(img_dir, annotated_file))
+    else:
+        annotated_img = None
+
     output_dir = os.path.join(img_dir, time.strftime("%d-%m--%H-%M-%S"))
     os.mkdir(output_dir)
     logging.debug('\nResults to be saved in: {}'.format(output_dir))
 
-    return img, img_id, output_dir
+    return img, annotated_img, img_id, output_dir
     
 
 def save_results(results, img_id, to_dir):
