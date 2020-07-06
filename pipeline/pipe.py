@@ -51,9 +51,7 @@ class Pipeline:
         if annotated_img is not None:
             assert len(annotated_img.shape) == 2, "Annotation image must be grayscale!"
             assert img.shape[:2] == annotated_img.shape[:2], "Annotation image and input image must have same (h, w)!" 
-            
-            print(np.unique(annotated_img, return_counts=True))
-            
+                        
             annots = np.array([-1, 0, 1])
             assert not False in np.in1d(annotated_img, annots), "Anotated image must only contain [-1, 0, 1]"
         
@@ -65,7 +63,7 @@ class Pipeline:
 
         unknown_mask, fg_mask, box_dim = self.to_masking_stage(img, annotated_img)
 
-        trimap = self.to_trimap_stage(fg_mask, unknown_mask)
+        trimap = self.to_trimap_stage(fg_mask, unknown_mask, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
 
@@ -81,8 +79,7 @@ class Pipeline:
         instances_vis = self.masking_stage.visualise_instances(img, instance_preds)
         self.results['instances'] = instances_vis
 
-        unknown_mask, fg_mask, box_dim = self.masking_stage.get_subject(instance_preds,
-                                                                        annotated_img)
+        unknown_mask, fg_mask, box_dim = self.masking_stage.get_subject(instance_preds, annotated_img)
   
         unknown_mask_vis = self.masking_stage.visualise_mask(img, 'unknown')
         fg_mask_vis = self.masking_stage.visualise_mask(img, 'fg')
@@ -95,10 +92,10 @@ class Pipeline:
         return unknown_mask, fg_mask, box_dim
 
 
-    def to_trimap_stage(self, fg_mask, unknown_mask):
+    def to_trimap_stage(self, fg_mask, unknown_mask, annotated_img=None):
         start = time.time()
 
-        trimap = self.trimap_stage.process_masks(fg_mask, unknown_mask)
+        trimap = self.trimap_stage.process_masks(fg_mask, unknown_mask, annotated_img)
         self.results['trimaps'].append(trimap*255)
 
         end = time.time()

@@ -142,10 +142,6 @@ class App(tk.Frame):
 
 
     def update_canvas(self, img, matte=None):
-        if self.active_brush_button:
-            self.active_brush_button.config(relief=tk.SUNKEN)
-            self.active_brush_button = None
-
         if self.img_on_canvas is None:
             self.img_on_canvas = CanvasImage(self.canvas_frame, self.canvas, self.brush_size_slider)
 

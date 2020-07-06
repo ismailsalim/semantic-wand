@@ -14,13 +14,12 @@ class CanvasImage:
 
 
     def reload_img(self, img=None):
-        self.canvas.delete('all') # clear annotations
+        self.canvas.delete('all') # free annotations 
         
         if img is not None:
             self.img = img
             self.imwidth, self.imheight = img.size
-        
-        # reset annotations
+
         self.last_x, self.last_y = None, None
         self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
 

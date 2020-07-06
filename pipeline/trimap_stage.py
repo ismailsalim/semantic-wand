@@ -13,10 +13,15 @@ class TrimapStage:
         self.k_size = k_size
         self.k_shape = k_shape      
 
-    def process_masks(self, fg_mask, unknown_mask):       
+    def process_masks(self, fg_mask, unknown_mask, annotated_img=None):       
         trimap = np.zeros(fg_mask.shape, dtype='float64') 
         trimap[fg_mask == 1.0] = 1.0
         trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
+
+        if annotated_img is not None:
+            trimap[annotated_img == 1] = 1.0
+            trimap[annotated_img == 0] = 0.0
+
         return trimap
 
     def process_alpha(self, alpha, trimap, level):

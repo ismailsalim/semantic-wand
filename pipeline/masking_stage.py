@@ -34,7 +34,7 @@ class MaskingStage:
         # only looking at first image in preds output for now
         instances = preds[0]['instances'].to('cpu')
         if len(instances) == 0:
-            raise ValueError("No instances found during masking stage!")
+            raise NoInstancesDetectedError("No instances found during masking stage!")
 
         return instances
 
@@ -45,7 +45,7 @@ class MaskingStage:
             subject = self.fg_intersection(instances, annotated_img)
             
             if subject == None:
-                raise NoSubjectFoundError
+                raise NoSubjectFoundError("Can't find an object to extract!")
             
         else: # find instance with largest predicted box area in the image
             idx = instances.get('pred_boxes').area().argmax().item()
@@ -69,8 +69,7 @@ class MaskingStage:
         # One instance mask with the largest intesersection with foreground annotated
         # pixels gets selected as the subject (fg pixels annotated as 1)
         masks = instances.get('pred_masks').cpu().numpy().astype(int) # boolean array (True -> part of mask)
-        matched_pixels = [np.sum(m==annotated_img) for m in masks]
-        
+        matched_pixels = [np.sum(np.logical_and(m==True, annotated_img==1)) for m in masks]
         if all(sum == 0 for sum in matched_pixels):
             return None # none of the instances have been annotated
 
@@ -113,6 +112,10 @@ class MaskingStage:
 
         return v.output.get_image()[:, :, ::-1]
 
+
+class NoInstancesDetectedError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 class NoSubjectFoundError(Exception):
     def __init__(self, message):
