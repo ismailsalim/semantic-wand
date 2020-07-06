@@ -4,7 +4,7 @@ from demo.app import App
 
 def main():
     root = tk.Tk()
-    root.minsize(960, 480)
+    # root.minsize(960, 480)
     app = App(root)
     root.deiconify()
     app.mainloop()

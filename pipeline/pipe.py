@@ -83,7 +83,7 @@ class Pipeline:
 
         unknown_mask, fg_mask, box_dim = self.masking_stage.get_subject(instance_preds,
                                                                         annotated_img)
-        
+  
         unknown_mask_vis = self.masking_stage.visualise_mask(img, 'unknown')
         fg_mask_vis = self.masking_stage.visualise_mask(img, 'fg')
         self.results['unknown_mask'] = unknown_mask_vis
@@ -150,3 +150,5 @@ class Pipeline:
             dim = (self.max_img_dim, int(h*r))
 
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+
+

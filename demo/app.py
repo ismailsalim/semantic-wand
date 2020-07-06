@@ -24,16 +24,18 @@ class App(tk.Frame):
         self.add_canvas()
         self.add_workspace()
 
+        self.active_brush_button = None
+
 
     def add_menu(self):
         self.menu = tk.LabelFrame(self.root, bd=1)
         self.menu.pack(side=tk.TOP, fill='x')
-        load_button = tk.Button(self.menu, text='Load', command=self.load_img)
-        load_button.pack(side=tk.LEFT)
-        save_button = tk.Button(self.menu, text='Save', command=self.save_matte)
-        save_button.pack(side=tk.LEFT)
-        quit_button = tk.Button(self.menu, text='Quit', command=self.root.quit)
-        quit_button.pack(side=tk.LEFT)
+        self.load_button = tk.Button(self.menu, text='Load', command=self.load_img)
+        self.load_button.pack(side=tk.LEFT)
+        self.save_button = tk.Button(self.menu, text='Save', command=self.save_matte)
+        self.save_button.pack(side=tk.LEFT)
+        self.quit_button = tk.Button(self.menu, text='Quit', command=self.root.quit)
+        self.quit_button.pack(side=tk.LEFT)
 
 
     def add_canvas(self):
@@ -53,8 +55,23 @@ class App(tk.Frame):
     def add_workspace(self):
         self.workspace = tk.LabelFrame(self.root, bd=1, text='Workspace')
         self.workspace.pack(side=tk.TOP, fill='x')
-        process_button = tk.Button(self.workspace, text='Process', command=self.process_img)
-        process_button.pack(side=tk.LEFT)
+
+        self.process_button = tk.Button(self.workspace, text='Extract Object', command=self.process_img)
+        self.process_button.pack(side=tk.TOP, pady=20)
+
+        self.fg_brush_button = tk.Button(self.workspace, text='Foreground Brush', 
+                                        command=lambda: self.activate_brush(self.fg_brush_button, "FG_BRUSH"))
+        self.fg_brush_button.pack(side=tk.TOP, pady=10)
+
+        self.bg_brush_button = tk.Button(self.workspace, text='Background Brush',
+                                        command=lambda: self.activate_brush(self.bg_brush_button, "BG_BRUSH"))
+        self.bg_brush_button.pack(side=tk.TOP, pady=10)
+
+        self.brush_size_slider = tk.Scale(self.workspace, from_=1, to=50, orient=tk.HORIZONTAL, label='Brush Size')
+        self.brush_size_slider.pack(side=tk.TOP, pady=10)
+
+        self.reset_button = tk.Button(self.workspace, text='Reset Annotations', command=self.reset_annotations)
+        self.reset_button.pack(side=tk.TOP, pady= 10)
 
 
     def load_img(self):
@@ -103,13 +120,36 @@ class App(tk.Frame):
         if self.img_on_canvas:
             annotations = self.img_on_canvas.annotations
             self.controller.process_img(annotations)
+
+
+    def activate_brush(self, button_pressed, brush_type):
+        if self.active_brush_button is not None:
+            self.active_brush_button.config(relief=tk.RAISED)
         
+        if self.active_brush_button == button_pressed:
+            self.active_brush_button = None
+            self.img_on_canvas.active_brush = None
+        else:
+            self.active_brush_button = button_pressed
+            self.active_brush_button.config(relief=tk.SUNKEN)
+            if self.img_on_canvas:
+                self.img_on_canvas.active_brush = brush_type
 
-    def update_canvas(self, img, matte=False):
+
+    def reset_annotations(self):
+        if self.img_on_canvas:
+            self.img_on_canvas.reload_img()
+
+
+    def update_canvas(self, img, matte=None):
+        if self.active_brush_button:
+            self.active_brush_button.config(relief=tk.SUNKEN)
+            self.active_brush_button = None
+
         if self.img_on_canvas is None:
-            self.img_on_canvas = CanvasImage(self.canvas_frame, self.canvas)
+            self.img_on_canvas = CanvasImage(self.canvas_frame, self.canvas, self.brush_size_slider)
 
-        if not matte: # display input image
+        if matte is None: # display input image
             self.img_on_canvas.reload_img(Image.fromarray(img))
         else: # display matte
             matte = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGRA2RGBA))

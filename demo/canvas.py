@@ -1,24 +1,27 @@
 from PIL import Image, ImageTk, ImageDraw
+import tkinter as tk
 import math
 
 class CanvasImage:
-    def __init__(self, canvas_frame, canvas):
+    def __init__(self, canvas_frame, canvas, brush_size):
         self.img_frame = canvas_frame
         self.canvas = canvas
         self.container = None
         self.img = None
         self.annotations = None
+        self.active_brush = None
+        self.brush_size = brush_size
 
 
-    def reload_img(self, img):
+    def reload_img(self, img=None):
         self.canvas.delete('all') # clear annotations
         
-        self.img = img
-        self.imwidth, self.imheight = img.size
+        if img is not None:
+            self.img = img
+            self.imwidth, self.imheight = img.size
         
         # reset annotations
-        self.last_x = None
-        self.last_y = None
+        self.last_x, self.last_y = None, None
         self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
 
         self.show_img()  
@@ -43,7 +46,14 @@ class CanvasImage:
 
 
     def paint(self, e):
-        x, y = e.x, e.y   
-        self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=1) 
-        self.drawing.line((self.last_x, self.last_y, x, y), fill=255, width=1) # fg marker
+        x, y = e.x, e.y
+        if self.active_brush == "FG_BRUSH":
+            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=self.brush_size.get(), capstyle=tk.ROUND) 
+            self.annot = self.drawing.line((self.last_x, self.last_y, x, y), fill=255, width=self.brush_size.get()) # fg marker
+        elif self.active_brush == "BG_BRUSH":
+            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='red', width=self.brush_size.get(), capstyle=tk.ROUND)
+            self.annot = self.drawing.line((self.last_x, self.last_y, x, y), fill=0, width=self.brush_size.get()) # bg marker
+
         self.last_x, self.last_y = x, y
+
+    

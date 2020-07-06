@@ -43,6 +43,10 @@ class MaskingStage:
         if annotated_img is not None:
             instance_masks = instances.get('pred_masks')
             subject = self.fg_intersection(instances, annotated_img)
+            
+            if subject == None:
+                raise NoSubjectFoundError
+            
         else: # find instance with largest predicted box area in the image
             idx = instances.get('pred_boxes').area().argmax().item()
             subject = instances[idx]
@@ -66,13 +70,12 @@ class MaskingStage:
         # pixels gets selected as the subject (fg pixels annotated as 1)
         masks = instances.get('pred_masks').cpu().numpy().astype(int) # boolean array (True -> part of mask)
         matched_pixels = [np.sum(m==annotated_img) for m in masks]
+        
+        if all(sum == 0 for sum in matched_pixels):
+            return None # none of the instances have been annotated
+
         most_matching_idx = matched_pixels.index(max(matched_pixels))
-        print('masks:', masks)
-        print('matched_pixels', matched_pixels)
-        print('most_matching_idx', most_matching_idx)
-        print('instances:', instances)
-        print('instance[most_matching]', instances[most_matching_idx])
-        return instances[most_matching_idx]
+        return instances[most_matching_idx] # assume no two instances with same matched pixels 
 
 
     def visualise_instances(self, img, instances):
@@ -111,3 +114,6 @@ class MaskingStage:
         return v.output.get_image()[:, :, ::-1]
 
 
+class NoSubjectFoundError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
