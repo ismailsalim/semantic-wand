@@ -141,15 +141,16 @@ class App(tk.Frame):
             self.img_on_canvas.reload_img()
 
 
-    def update_canvas(self, img, matte=None):
+    def update_canvas(self, img, with_matte=False):
         if self.img_on_canvas is None:
             self.img_on_canvas = CanvasImage(self.canvas_frame, self.canvas, self.brush_size_slider)
 
-        if matte is None: # display input image
-            self.img_on_canvas.reload_img(Image.fromarray(img))
-        else: # display matte
+        if with_matte: # display matte results
             matte = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGRA2RGBA))
             self.img_on_canvas.reload_img(matte)
+        else: # display loaded input image
+            self.img_on_canvas.reload_img(Image.fromarray(img))
+
 
 
 

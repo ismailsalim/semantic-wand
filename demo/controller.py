@@ -22,7 +22,7 @@ class Controller:
         annotations = self.preprocess_annotations(annotations)
         self.model_results = self.model(self.img, annotations)
         self.matte = self.model_results['mattes'][-1] # get final matte
-        self.update_canvas_cb(self.matte, matte=True)
+        self.update_canvas_cb(self.matte, with_matte=True)
 
 
     def preprocess_annotations(self, annotations):
