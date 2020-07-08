@@ -7,6 +7,8 @@ import logging
 
 import cv2
 
+from utils.mask_visualiser import visualise_masks
+
 def main():
     logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
                     format='%(asctime)s:%(levelname)s:%(message)s')
@@ -27,20 +29,23 @@ def main():
     # for masking stage specification
     parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
-    parser.add_argument('--mask_thresh', type=float, default=0.8, 
+    parser.add_argument('--score_thresh', type=float, default=0.8, 
                         help='Mask R-CNN score threshold for instance recognition')
-    parser.add_argument('--unknown_thresh', type=float, default=0.1, 
-                    help='Mask R-CNN pixel probability threshold used for unknown region')
-    parser.add_argument('--def_fg_thresh', type=float, default=0.99, 
-                    help='Mask R-CNN pixel probability threshold used for definite foreground')
+    parser.add_argument('--mask_thresh', type=float, default=0.5, 
+                        help='Mask R-CNN probability threshold for conversion of soft mask to binary mask')
 
     # for trimap stage specification
-    parser.add_argument('--dilation_sf', type=float, default=0.01, 
-                        help='Number to divide box area by to obtain kernel size')
-    parser.add_argument('--kernel_size', type=int, default=3, 
-                        help='Dimension of dilation kernel (must be odd)')                      
-    parser.add_argument('--kernel_shape', default='MORPH_RECT', 
-                        help='OpenCV kernel shape type for erosion/dilation')
+    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.95, 0.97, 0.99],
+                        help='Mask R-CNN pixel probability thresholds used for definite foreground')
+    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.1, 0.15, 0.2],
+                        help='Mask R-CNN pixel probability threshold used for unknown region')
+    
+    # parser.add_argument('--dilation_sf', type=float, default=0.01, 
+    #                     help='Number to divide box area by to obtain kernel size')
+    # parser.add_argument('--kernel_size', type=int, default=3, 
+    #                     help='Dimension of dilation kernel (must be odd)')                      
+    # parser.add_argument('--kernel_shape', default='MORPH_RECT', 
+    #                     help='OpenCV kernel shape type for erosion/dilation')
 
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
@@ -52,11 +57,13 @@ def main():
 
     pipeline = Pipeline(max_img_dim = args.max_img_dim,
                         mask_config = args.mask_config,
-                        mask_thresh = args.mask_thresh,
-                        trimap_thresholds = [args.unknown_thresh, args.def_fg_thresh],
-                        dilation_sf = args.dilation_sf,
-                        kernel_size = args.kernel_size,
-                        kernel_shape = args.kernel_shape,
+                        roi_score_threshold = args.score_thresh,
+                        mask_threshold = args.mask_thresh,
+                        def_fg_thresholds = args.def_fg_threshs,
+                        unknown_thresholds = args.unknown_threshs,
+                        # dilation_sf = args.dilation_sf,
+                        # kernel_size = args.kernel_size,
+                        # kernel_shape = args.kernel_shape,
                         matting_weights = args.matting_weights,
                         iterations = args.iterations) 
 

@@ -5,15 +5,30 @@ import time
 # external libraries
 import numpy as np
 import cv2
+import itertools
 
+import detectron2
+from detectron2.layers.mask_ops import paste_masks_in_image
+from detectron2.utils.memory import retry_if_cuda_oom
 
 class TrimapStage: 
-    def __init__(self, dilation_sf, k_size, k_shape):
-        self.dilation_sf = dilation_sf 
-        self.k_size = k_size
-        self.k_shape = k_shape      
+    def __init__(self, def_fg_thresholds, unknown_thresholds):
+        self.def_fg_thresholds = def_fg_thresholds
+        self.unknown_thresholds = unknown_thresholds
+        # self.dilation_sf = dilation_sf 
+        # self.k_size = k_size
+        # self.k_shape = k_shape      
 
-    def process_masks(self, fg_mask, unknown_mask, annotated_img=None):       
+    def process_subject(self, subject, annotated_img=None):
+        # if annotated_img is not None:  
+        #     fg_mask = self.get_fg_mask(subject, thresholds['fg_thresh'], annotated_img)
+        #     unknown_mask = self.get_unknown_mask(subject, thresholds['unknown_thresh'], annotated_img)
+        # else:
+        #     fg_mask = self.get_fg_mask(subject, min(thresholds['fg_thresh']))
+        #     unknown_mask = self.get_fg_mask(subject, max(thresholds('unknown_thresh')))
+        fg_mask, fg_thresh = self.get_fg_mask(subject, min(self.def_fg_thresholds))
+        unknown_mask, unknown_thresh = self.get_unknown_mask(subject, max(self.unknown_thresholds))
+
         trimap = np.zeros(fg_mask.shape, dtype='float64') 
         trimap[fg_mask == 1.0] = 1.0
         trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
@@ -22,14 +37,58 @@ class TrimapStage:
             trimap[annotated_img == 1] = 1.0
             trimap[annotated_img == 0] = 0.0
 
-        return trimap
+        return trimap, fg_thresh, unknown_thresh
+
+
+    def get_fg_mask(self, subject, thresholds, annotated_img=None):
+        if annotated_img is not None:
+            fg_masks = []
+            for thresh in thresholds:
+                fg_masks.append(self.convert_to_binary_mask(subject, thresh))
+            fg_mask, threshold = self.find_optimal_mask(fg_masks, annotated_img, fg=True)
+        else:
+            fg_mask = self.convert_to_binary_mask(subject, thresholds) # single value threshold
+            threshold = thresholds 
+
+        return fg_mask.cpu().numpy().squeeze(), threshold
+
+
+    def get_unknown_mask(self, subject, thresholds, annotated_img=None):
+        if annotated_img is not None:
+            unknown_masks = []
+            for thresh in thresholds:
+                unknown_masks.append(self.convert_to_binary_mask(subject, thresh))
+            unknown_mask, threshold = self.find_optimal_mask(unknown_masks, annotated_img)
+        else:
+            unknown_mask = self.convert_to_binary_mask(subject, thresholds) # single value threshold
+            threshold = thresholds
+
+        return unknown_mask.cpu().numpy().squeeze(), threshold
+
+
+    # def find_optimal_mask(self, masks, annotated_img, fg=False):
+    #     if fg:
+    #         self.minimal_bg_intersection(masks, annotated_img)
+    #     else:
+    #         self.most_
+
+    def convert_to_binary_mask(self, subject, thresh):
+        binary_mask = retry_if_cuda_oom(paste_masks_in_image)(
+                subject.pred_masks[:, 0, :, :],  # N, 1, M, M
+                subject.pred_boxes,
+                subject.image_size,
+                thresh,
+        )
+        return binary_mask
+
+
 
     def process_alpha(self, alpha, trimap, level):
         start = time.time()
 
-        logging.debug("Dilation Scale Factor {}".format(self.dilation_sf))
-        # logging.debug("Kernel size: {}". format(self.k_size))
-        logging.debug("Kernel shape: {}".format(self.k_shape))        
+        # logging.debug("Dilation Scale Factor {}".format(self.dilation_sf))
+        # # logging.debug("Kernel size: {}". format(self.k_size))
+        # logging.debug("Kernel shape: {}".format(self.k_shape))        
 
         # kernel = cv2.getStructuringElement(getattr(cv2, self.k_shape), 
         #                                     (self.k_size, self.k_size))                            

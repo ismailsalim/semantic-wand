@@ -31,7 +31,7 @@ class ModifiedRCNN(nn.Module):
     def device(self):
         return self.pixel_mean.device
 
-    def forward(self, batched_inputs, mask_thresholds):
+    def forward(self, batched_inputs, mask_threshold):
         """                
         For running inference on given input images.
         Args:
@@ -53,7 +53,7 @@ class ModifiedRCNN(nn.Module):
 
         results, _ = self.roi_heads(images, features, proposals, None)
 
-        return self.postprocess(results, batched_inputs, images.image_sizes, mask_thresholds)
+        return self.postprocess(results, batched_inputs, images.image_sizes, mask_threshold)
 
 
     def preprocess_image(self, batched_inputs):
@@ -66,7 +66,7 @@ class ModifiedRCNN(nn.Module):
         return images
 
 
-    def postprocess(self, instances, batched_inputs, image_sizes, mask_thresholds):
+    def postprocess(self, instances, batched_inputs, image_sizes, mask_threshold):
         """
         Rescales the output instances to the target size.
         """
@@ -77,13 +77,13 @@ class ModifiedRCNN(nn.Module):
             
             height = input_per_image.get("height", image_size[0])
             width = input_per_image.get("width", image_size[1])
-            r = self.detector_postprocess(results_per_image, height, width, mask_thresholds)
+            r = self.detector_postprocess(results_per_image, height, width, mask_threshold)
             processed_results.append({"instances": r})
         
         return processed_results
 
 
-    def detector_postprocess(self, results, output_height, output_width, mask_thresholds):
+    def detector_postprocess(self, results, output_height, output_width, mask_threshold):
         """
         Resizes the raw outputs of an R-CNN detector to produce outputs according to the 
         desired output resolution.
@@ -124,21 +124,21 @@ class ModifiedRCNN(nn.Module):
 
         results = results[output_boxes.nonempty()]
 
-        for thresh in mask_thresholds:
-            field = "pred_mask_" + str(thresh)
-            trimap_mask = retry_if_cuda_oom(paste_masks_in_image)(
-            results.pred_masks[:, 0, :, :],  # N, 1, M, M
-            results.pred_boxes,
-            results.image_size,
-            thresh,
-            )
-            results.set(field, trimap_mask)
+        # for thresh in mask_thresholds:
+        #     field = "pred_mask_" + str(thresh)
+        #     trimap_mask = retry_if_cuda_oom(paste_masks_in_image)(
+        #     results.pred_masks[:, 0, :, :],  # N, 1, M, M
+        #     results.pred_boxes,
+        #     results.image_size,
+        #     thresh,
+        #     )
+        #     results.set(field, trimap_mask)
 
-        results.pred_masks = retry_if_cuda_oom(paste_masks_in_image)(
-        results.pred_masks[:, 0, :, :],  # N, 1, M, M
-        results.pred_boxes,
-        results.image_size,
-        threshold=0.5,
-        )
+        # results.pred_masks = retry_if_cuda_oom(paste_masks_in_image)(
+        # results.pred_masks[:, 0, :, :],  # N, 1, M, M
+        # results.pred_boxes,
+        # results.image_size,
+        # threshold=mask_threshold,
+        # )
         
         return results
