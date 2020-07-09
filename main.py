@@ -7,8 +7,6 @@ import logging
 
 import cv2
 
-from utils.mask_visualiser import visualise_masks
-
 def main():
     logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
                     format='%(asctime)s:%(levelname)s:%(message)s')
@@ -37,7 +35,7 @@ def main():
     # for trimap stage specification
     parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.95, 0.97, 0.99],
                         help='Mask R-CNN pixel probability thresholds used for definite foreground')
-    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.1, 0.15, 0.2],
+    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.2, 0.15, 0.1],
                         help='Mask R-CNN pixel probability threshold used for unknown region')
     
     # parser.add_argument('--dilation_sf', type=float, default=0.01, 

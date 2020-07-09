@@ -13,8 +13,8 @@ from detectron2.utils.memory import retry_if_cuda_oom
 
 class TrimapStage: 
     def __init__(self, def_fg_thresholds, unknown_thresholds):
-        self.def_fg_thresholds = def_fg_thresholds
-        self.unknown_thresholds = unknown_thresholds
+        self.def_fg_thresholds = sorted(def_fg_thresholds)
+        self.unknown_thresholds = sorted(unknown_thresholds, reverse=True)
         # self.dilation_sf = dilation_sf 
         # self.k_size = k_size
         # self.k_shape = k_shape      
@@ -26,8 +26,8 @@ class TrimapStage:
         # else:
         #     fg_mask = self.get_fg_mask(subject, min(thresholds['fg_thresh']))
         #     unknown_mask = self.get_fg_mask(subject, max(thresholds('unknown_thresh')))
-        fg_mask, fg_thresh = self.get_fg_mask(subject, min(self.def_fg_thresholds))
-        unknown_mask, unknown_thresh = self.get_unknown_mask(subject, max(self.unknown_thresholds))
+        fg_mask, fg_thresh = self.get_fg_mask(subject, annotated_img)
+        unknown_mask, unknown_thresh = self.get_unknown_mask(subject, annotated_img)
 
         trimap = np.zeros(fg_mask.shape, dtype='float64') 
         trimap[fg_mask == 1.0] = 1.0
@@ -40,37 +40,56 @@ class TrimapStage:
         return trimap, fg_thresh, unknown_thresh
 
 
-    def get_fg_mask(self, subject, thresholds, annotated_img=None):
+    def get_fg_mask(self, subject, annotated_img=None):
         if annotated_img is not None:
             fg_masks = []
-            for thresh in thresholds:
+            for thresh in self.def_fg_thresholds:
                 fg_masks.append(self.convert_to_binary_mask(subject, thresh))
-            fg_mask, threshold = self.find_optimal_mask(fg_masks, annotated_img, fg=True)
+            fg_mask, idx = self.find_optimal_mask(fg_masks, annotated_img, fg=True)
+            threshold = self.def_fg_thresholds[idx]
         else:
-            fg_mask = self.convert_to_binary_mask(subject, thresholds) # single value threshold
-            threshold = thresholds 
+            threshold = min(self.def_fg_thresholds)
+            fg_mask = self.convert_to_binary_mask(subject, threshold) 
 
-        return fg_mask.cpu().numpy().squeeze(), threshold
+        return fg_mask, threshold
 
 
-    def get_unknown_mask(self, subject, thresholds, annotated_img=None):
+    def get_unknown_mask(self, subject, annotated_img=None):
         if annotated_img is not None:
             unknown_masks = []
-            for thresh in thresholds:
+            for thresh in self.unknown_thresholds:
                 unknown_masks.append(self.convert_to_binary_mask(subject, thresh))
-            unknown_mask, threshold = self.find_optimal_mask(unknown_masks, annotated_img)
+            unknown_mask, idx = self.find_optimal_mask(unknown_masks, annotated_img)
+            threshold = self.unknown_thresholds[idx]
         else:
-            unknown_mask = self.convert_to_binary_mask(subject, thresholds) # single value threshold
-            threshold = thresholds
+            threshold = max(self.unknown_thresholds)
+            unknown_mask = self.convert_to_binary_mask(subject, threshold) 
 
-        return unknown_mask.cpu().numpy().squeeze(), threshold
+        return unknown_mask, threshold
 
 
-    # def find_optimal_mask(self, masks, annotated_img, fg=False):
-    #     if fg:
-    #         self.minimal_bg_intersection(masks, annotated_img)
-    #     else:
-    #         self.most_
+    def find_optimal_mask(self, masks, annotated_img, fg=False):
+        if fg:
+            return self.minimal_bg_intersection(masks, annotated_img)
+        else:
+            return self.most_fg_intersection(masks, annotated_img)
+
+
+    def minimal_bg_intersection(self, masks, annotated_img):
+        intersection = [np.sum(np.logical_and(mask==True, annotated_img==0.0)) for mask in masks]
+        print("Minimal BG Intersections:", intersection)
+        idx = intersection.index(min(intersection)) # find first minimum
+        print("Minimal idx", idx)
+        return masks[idx], idx 
+
+
+    def most_fg_intersection(self, masks, annotated_img):
+        intersection = [np.sum(np.logical_and(mask==True, annotated_img==1.0)) for mask in masks]
+        print("Most FG Intersections:", intersection)
+        idx = intersection.index(max(intersection)) # find first maximum
+        print("Max idx,", idx)
+        return masks[idx], idx 
+
 
     def convert_to_binary_mask(self, subject, thresh):
         binary_mask = retry_if_cuda_oom(paste_masks_in_image)(
@@ -79,7 +98,7 @@ class TrimapStage:
                 subject.image_size,
                 thresh,
         )
-        return binary_mask
+        return binary_mask.cpu().numpy().squeeze()
 
 
 

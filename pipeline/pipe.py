@@ -16,7 +16,7 @@ class Pipeline:
                         roi_score_threshold = 0.8,
                         mask_threshold = 0.5,
                         def_fg_thresholds = [0.95, 0.97, 0.99],
-                        unknown_thresholds = [0.1, 0.15, 0.2],
+                        unknown_thresholds = [0.2, 0.15, 0.1],
                         # dilation_sf = 1000,
                         # kernel_size = 3,
                         # kernel_shape = 'MORPH_RECT',
