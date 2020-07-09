@@ -3,15 +3,16 @@ from pipeline.pipe import Pipeline
 import argparse
 import os
 import time
-import logging
+# import logging
 
 import cv2
 
 def main():
-    logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
-                    format='%(asctime)s:%(levelname)s:%(message)s')
-    logging.getLogger('matplotlib.font_manager').disabled = True
+    # logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
+    #                 format='%(asctime)s:%(levelname)s:%(message)s')
+    # logging.getLogger('matplotlib.font_manager').disabled = True
 
+    # (refactor) change to YAML?
     parser = argparse.ArgumentParser()
     
     # for image specification
@@ -37,13 +38,6 @@ def main():
                         help='Mask R-CNN pixel probability thresholds used for definite foreground')
     parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.2, 0.15, 0.1],
                         help='Mask R-CNN pixel probability threshold used for unknown region')
-    
-    # parser.add_argument('--dilation_sf', type=float, default=0.01, 
-    #                     help='Number to divide box area by to obtain kernel size')
-    # parser.add_argument('--kernel_size', type=int, default=3, 
-    #                     help='Dimension of dilation kernel (must be odd)')                      
-    # parser.add_argument('--kernel_shape', default='MORPH_RECT', 
-    #                     help='OpenCV kernel shape type for erosion/dilation')
 
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
@@ -59,9 +53,6 @@ def main():
                         mask_threshold = args.mask_thresh,
                         def_fg_thresholds = args.def_fg_threshs,
                         unknown_thresholds = args.unknown_threshs,
-                        # dilation_sf = args.dilation_sf,
-                        # kernel_size = args.kernel_size,
-                        # kernel_shape = args.kernel_shape,
                         matting_weights = args.matting_weights,
                         iterations = args.iterations) 
 
@@ -81,7 +72,7 @@ def setup_io(img_file, annotated_file, img_dir):
 
     img = cv2.imread(os.path.join(img_dir, img_file))
     if img is None:
-        raise ValueError("Image not found!")
+        raise ValueError("Input image not found!")
     
     if annotated_file:
         annotated_img = cv2.imread(os.path.join(img_dir, annotated_file))
@@ -90,7 +81,6 @@ def setup_io(img_file, annotated_file, img_dir):
 
     output_dir = os.path.join(img_dir, time.strftime("%d-%m--%H-%M-%S"))
     os.mkdir(output_dir)
-    logging.debug('\nResults to be saved in: {}'.format(output_dir))
 
     return img, annotated_img, img_id, output_dir
     
