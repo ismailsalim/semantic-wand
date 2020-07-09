@@ -98,7 +98,7 @@ class App(tk.Frame):
             r = max_img_dim/float(h)
             dim = (int(w*r), max_img_dim)
         else:
-            r = self.max_img_dim/float(w)
+            r = max_img_dim/float(w)
             dim = (max_img_dim, int(h*r))
 
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
