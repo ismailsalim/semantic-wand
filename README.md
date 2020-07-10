@@ -60,26 +60,26 @@ For easiest use, keep to the following structure:
 .
 ├── examples/
 │   ├── img_id_1 # directory containing input image (same identifier as the image file!)
-|   |    └── img_id_1.ext # .png or .jpg (same identifier as the image directory!)
-|   └── img_id_2
-|        └── img_id_2.ext
+│   │   └── img_id_1.ext # .png or .jpg (same identifier as the image directory!)
+│   └── img_id_2
+│       └── img_id_2.ext
 ├── demo/
-|   ├── app.py
-|   ├── canvas.py
-|   └── controller.py
+│   ├── app.py
+│   ├── canvas.py
+│   └── controller.py
 ├── masking_network/
-|   ├── models.py
-|   └── predictor.py
+│   ├── models.py
+│   └── predictor.py
 ├── matting_network
 │   ├── FBA.pth  # place pre-trained matting model here!
 │   ├── layers_WS.py
 │   ├── models.py
 │   └── resnet_GN_WS.py
 ├── pipeline
-│     ├── masking_stage.py
-│     ├── pipe.py
-│     ├── refinement_stage.py
-│    └── trimap_stage.py
+│   ├── masking_stage.py
+│   ├── pipe.py
+│   ├── refinement_stage.py
+│   └── trimap_stage.py
 ├── main.py
 └── demo.py
 ```
