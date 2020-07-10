@@ -1,4 +1,4 @@
-# Semantic Wand: A Learning-based Tool For Natural Image Object Extraction
+# Semantic Wand: A Learning-based Tool for Object Extraction in Natural Images
 
 ## Setting up an environment
 The pipeline is built using Python 3.6 and requires:
