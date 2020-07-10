@@ -34,9 +34,9 @@ def main():
                         help='Mask R-CNN probability threshold for conversion of soft mask to binary mask')
 
     # for trimap stage specification
-    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.97, 0.98, 0.99],
+    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.98, 0.985, 0.99, 0.995],
                         help='Mask R-CNN pixel probability thresholds used for definite foreground')
-    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.2, 0.15, 0.1],
+    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.1, 0.075, 0.05],
                         help='Mask R-CNN pixel probability threshold used for unknown region')
 
     # for refinement stage specification

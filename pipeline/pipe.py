@@ -13,8 +13,8 @@ class Pipeline:
                         mask_config = 'Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         roi_score_threshold = 0.8,
                         mask_threshold = 0.5,
-                        def_fg_thresholds = [0.97, 0.98, 0.99],
-                        unknown_thresholds = [0.2, 0.15, 0.1],
+                        def_fg_thresholds = [0.98, 0.985, 0.99, 0.995],
+                        unknown_thresholds = [0.1, 0.075, 0.05],
                         matting_weights = './matting_network/FBA.pth',
                         iterations = 3):
         self.max_img_dim = max_img_dim
