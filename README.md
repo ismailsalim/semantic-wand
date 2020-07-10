@@ -25,6 +25,8 @@ python demo.py
 ### 2. Script for intermediate pipeline results
 This script reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte in directories that can also be specified (directories must exist already).
 
+Matting will only be done for the **largest identified object in the image**.
+
 This script is useful for experimentation with various arguments as shown below:
 ```bash
 # This finds donkey.png in ./examples/donkey/ and feeds the image into the pipeline
