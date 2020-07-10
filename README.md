@@ -1,43 +1,31 @@
-# Semantic Wand: A Tool For Natural Image Object Extraction
+# Semantic Wand: A Learning-based Tool For Natural Image Object Extraction
 
 ## Setting up an environment
-The tool is built using Python 3.6 and requires:
+The pipeline is built using Python 3.6 and requires:
 - PyTorch 1.4.0+ (I'm using torch==1.5.0+cu101 and torchvision==0.6.0+cu101)
 - Detectron2 (I'm using detectron2==0.1.3+cu101)
 - pycocotools
 - OpenCV
 
-You can install Detectron2 according to the instructions [here](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md).
+You can install the correct version of Detectron2 (with cuda) according to the instructions [here](https://github.com/facebookresearch/detectron2/blob/master/INSTALL.md).
+
+**Note:** The masking stage relies on a pre-trained Mask R-CNN model provided by [Detectron2](https://github.com/facebookresearch/detectron2). The model should be downloaded automatically the first time it is used for inference so be aware that this first time will take a bit longer!
+
+**Note:** The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which **must** be manually downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view) and placed in the `matting_network/` directory (see [Directory Structure](##directory-structure) below)
 
 ## Use
-Currently, the tool reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte (.png) in directories that can also be specified (directories must exist already). 
+### 1. Interactive app
+The app is built with Python's tkinter. Hopefully, usage is self-explanatory from the interface.
 
-The coarse stage relies on pre-trained Mask R-CNN models provided by [Detectron2](https://github.com/facebookresearch/detectron2). A model is downloaded the first time it is specified in the command line when running the tool (see [Example usage](###Example-usage)). A reference to all the different pre-trained models avaiable can be found [here](https://github.com/facebookresearch/detectron2/tree/master/configs).
-
-The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which can be downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view).
-
-For easiest use, keep the repo in the following structure:
+To start the app, run from the command line:
 ```bash
-.
-├── examples/
-│   ├── img_id_1 # directory containing input image (with same identifier)
-|   |    └── img_id_1.ext # .png or .jpg
-|   └── img_id_2
-|        └── img_id_2.ext
-├── main.py
-├── matting_network
-│   ├── FBA.pth  # pre-trained matting model
-│   ├── layers_WS.py
-│   ├── models.py
-│   └── resnet_GN_WS.py
-├── pipeline
-    ├── coarse_stage.py
-    ├── pipe.py
-    ├── refinement_stage.py
-    └── trimap_stage.py
+python demo.py
 ```
 
-### Example usage:
+### 2. Script for intermediate pipeline results
+This script reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte in directories that can also be specified (directories must exist already).
+
+This script is useful for experimentation with various arguments as shown below:
 ```bash
 # This finds donkey.png in ./examples/donkey/ and feeds the image into the pipeline
 # using the default Mask R-CNN pre-trained model.
@@ -47,7 +35,7 @@ python3 main.py donkey.png
 # results will be saved).
 python3 main.py donkey.png --iterations=2
 
-# This uses the non-default model from Detectron2. Format follows directory structure
+# This uses a non-default model from Detectron2. Format follows directory structure
 # in the Detectron2 source code below.
 # https://github.com/facebookresearch/detectron2/tree/master/configs
 python3 main.py donkey.png --coarse_config=COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
@@ -57,10 +45,41 @@ python3 main.py donkey.png --coarse_config=COCO-InstanceSegmentation/mask_rcnn_R
 # To maintain the original input image size, make this value bigger than the largest 
 # dimension of the input image.
 python3 main.py donkey.png --max_img_dim=3000
-
-# This changes the scale factor applied for calculating the kernel size to 20000. 
-# A larger value leads to a smaller kernel size and less erosion/dilation during the 
-# trimap stage. 
-# (This will be scrapped soon but it's interesting to play around with).
-python3 main.py donkey.png --kernel_scale_factor=20000
 ```
+
+To see all the arguments that you can experiment with, run:
+```bash
+python main.py --help
+``` 
+
+## Directory Structure
+For easiest use, keep to the following structure:
+```bash
+.
+├── examples/
+│   ├── img_id_1 # directory containing input image (same identifier as the image file!)
+|   |    └── img_id_1.ext # .png or .jpg (same identifier as the image directory!)
+|   └── img_id_2
+|        └── img_id_2.ext
+├── demo/
+|   ├── app.py
+|   ├── canvas.py
+|   └── controller.py
+├── masking_network/
+|   ├── models.py
+|   └── predictor.py
+├── matting_network
+│   ├── FBA.pth  # place pre-trained matting model here!
+│   ├── layers_WS.py
+│   ├── models.py
+│   └── resnet_GN_WS.py
+├── pipeline
+│     ├── masking_stage.py
+│     ├── pipe.py
+│     ├── refinement_stage.py
+│    └── trimap_stage.py
+├── main.py
+└── demo.py
+```
+
+**Note:** The only thing that you have to do is add `FBA.pth` into `matting_network/` and esnure images used for `main.py` follow the specified structure show in `examples/`.
