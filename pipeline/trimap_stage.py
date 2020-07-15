@@ -32,7 +32,7 @@ class TrimapStage:
             trimap[annotated_img == 1] = 1.0
             trimap[annotated_img == 0] = 0.0
 
-        return heatmap, trimap, fg_thresh, unknown_thresh
+        return heatmap, trimap, fg_mask, unknown_mask
 
 
     def process_alpha(self, alpha, trimap, level):

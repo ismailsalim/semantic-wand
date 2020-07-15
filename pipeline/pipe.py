@@ -84,12 +84,12 @@ class Pipeline:
 
 
     def to_trimap_stage(self, subject, img, annotated_img=None):
-        heatmap, trimap, fg_thresh, unknown_thresh = self.trimap_stage.process_subject(subject, annotated_img)
+        heatmap, trimap, fg_mask, unknown_mask = self.trimap_stage.process_subject(subject, annotated_img)
         
         # (refactor) move this out of pipe
         self.results['heatmap'] = heatmap*255
-        self.results['fg_mask'] = self.masking_stage.visualise(subject, img, fg_thresh)
-        self.results['unknown_mask'] = self.masking_stage.visualise(subject, img, unknown_thresh)
+        self.results['fg_mask'] = fg_mask*255
+        self.results['unknown_mask'] = unknown_mask*255
         self.results['trimaps'].append(trimap*255)
 
         return trimap
