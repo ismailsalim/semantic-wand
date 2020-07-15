@@ -25,18 +25,30 @@ class NoSubjectFoundError(Exception):
 
 class MaskingStage:
     def __init__(self, cfg, roi_score_threshold, mask_threshold):
+        # get default Detectron2 Mask R-CNN configuration
         self.cfg = get_cfg() 
         self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
         self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfg)
-        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = roi_score_threshold
+
+        # custom configuration
+        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 2000
+        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TEST = 1000
+        self.cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN = 2000
+        self.cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
+        self.cfg.MODEL.RPN.NMS_THRESH = 0.7
+        self.cfg.MODEL.RPN.IOU_THRESHOLDS = [0.3, 0.7]
+        
+        self.cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.5]
+        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = roi_score_threshold       
+        
         self.cfg.MODEL.META_ARCHITECTURE = 'ModifiedRCNN' # (refactor) pass in
         self.mask_threshold = mask_threshold
+        self.predictor = Predictor(self.cfg, self.mask_threshold)
 
 
-    def get_all_instances(self, img):   
-        predictor = Predictor(self.cfg, self.mask_threshold)
-        preds = predictor(img)
-        
+    def get_all_instances(self, img):
+        preds = self.predictor(img)
+
         # (refactor) single/multiple image optimisation for eval
         instances = preds[0]['instances']
         if len(instances) == 0:
