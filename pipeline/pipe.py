@@ -11,7 +11,7 @@ import numpy as np
 class Pipeline:
     def __init__(self, max_img_dim = 1000,
                         mask_config = 'Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
-                        roi_score_threshold = 0.8,
+                        roi_score_threshold = 0.5,
                         mask_threshold = 0.5,
                         def_fg_thresholds = [0.98, 0.985, 0.99, 0.995],
                         unknown_thresholds = [0.1, 0.075, 0.05],
@@ -84,9 +84,10 @@ class Pipeline:
 
 
     def to_trimap_stage(self, subject, img, annotated_img=None):
-        trimap, fg_thresh, unknown_thresh = self.trimap_stage.process_subject(subject, annotated_img)
+        heatmap, trimap, fg_thresh, unknown_thresh = self.trimap_stage.process_subject(subject, annotated_img)
         
         # (refactor) move this out of pipe
+        self.results['heatmap'] = heatmap*255
         self.results['fg_mask'] = self.masking_stage.visualise(subject, img, fg_thresh)
         self.results['unknown_mask'] = self.masking_stage.visualise(subject, img, unknown_thresh)
         self.results['trimaps'].append(trimap*255)
