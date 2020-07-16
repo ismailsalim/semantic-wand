@@ -82,8 +82,8 @@ class MaskingStage:
     def _most_annotated(self, instances, annotated_img):
         # Instance with mask that has largest intesersection with foreground annotated
         # pixels gets selected as the subject 
-        masks = instances.cpu().numpy().astype(int) # True implies image pixel is part of mask
-        matching = [np.sum(np.logical_and(m==True, annotated_img==1)) for m in masks]
+        masks = instances.cpu().numpy() # True implies image pixel is part of mask
+        matching = [np.sum(np.logical_and(m==True, annotated_img==1)) for m in masks] 
         
         if all(sum == 0 for sum in matching):
             return None # none of the instances have been annotated

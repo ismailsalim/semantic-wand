@@ -1,12 +1,17 @@
+from trimap_network.models import build_model, DataWrapper
+
 import numpy as np
 import detectron2
 import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from detectron2.layers.mask_ops import _do_paste_mask
 from detectron2.utils.memory import retry_if_cuda_oom
 
 BYTES_PER_FLOAT = 4
 GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
-
+device = torch.device("cuda:0")
 
 class TrimapStage: 
     def __init__(self, def_fg_thresholds, unknown_thresholds):
@@ -14,7 +19,7 @@ class TrimapStage:
         self.unknown_thresholds = unknown_thresholds
 
 
-    def process_subject(self, subject, annotated_img=None):
+    def process_subject(self, subject, img, annotated_img=None):
         if annotated_img is not None:
             fg_mask, fg_thresh = self._get_mask(subject, self.def_fg_thresholds, min, annotated_img==0)
             unknown_mask, unknown_thresh = self._get_mask(subject, self.unknown_thresholds, max, annotated_img==1)
@@ -24,13 +29,28 @@ class TrimapStage:
 
         heatmap, _ = self._get_mask(subject)
 
-        trimap = np.zeros(fg_mask.shape, dtype='float64') 
-        trimap[fg_mask == 1.0] = 1.0
-        trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
+        # old method
+        # trimap = np.zeros(fg_mask.shape, dtype='float64') 
+        # trimap[fg_mask == 1.0] = 1.0
+        # trimap[np.logical_and(unknown_mask==1.0, fg_mask==0.0)] = 0.5
 
-        if annotated_img is not None:
-            trimap[annotated_img == 1] = 1.0
-            trimap[annotated_img == 0] = 0.0
+        # if annotated_img is not None:
+        #     trimap[annotated_img == 1] = 1.0
+        #     trimap[annotated_img == 0] = 0.0
+
+        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, annotated_img)
+        trimap_generator = build_model()
+        self._train(trimap_generator, train_data)
+        unknown_preds = self._infer(trimap_generator, infer_data)
+        
+        trimap = np.zeros(fg_mask.shape, dtype=float) 
+        trimap[fg_mask] = 1.0
+        trimap[~unknown_mask] = 0.0
+
+        coords = np.argwhere(unknown_mask != fg_mask)
+
+        for coord, pred in zip(coords, unknown_preds):
+            trimap[coord[0], coord[1]] = pred
 
         return heatmap, trimap, fg_mask, unknown_mask
 
@@ -39,6 +59,83 @@ class TrimapStage:
         trimap[alpha==0.0] = 0.0
         trimap[alpha==1.0] = 1.0
         return trimap
+
+    
+    def _preprocess_data(self, img, heatmap, fg_mask, unknown_mask, annotated_img=None):
+        if annotated_img is not None:
+            fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
+            unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
+
+        X_fg = self._format_features(img, heatmap, fg_mask, annotated_img)
+        X_bg = self._format_features(img, heatmap, ~unknown_mask, annotated_img)
+
+        y_fg = np.ones(len(X_fg))
+        y_bg = np.zeros(len(X_bg))
+
+        X_train = np.vstack((X_fg, X_bg))
+        y_train = np.hstack((y_fg, y_bg))
+        
+        # shuffler = np.random.permutation(len(y_train))
+        # X_train = X_train[shuffler]
+        # y_train = y_train[shuffler]
+
+        train_data = DataWrapper(torch.from_numpy(X_train).float().to(device),
+                                torch.from_numpy(y_train).float().to(device))
+
+
+        X_infer = self._format_features(img, heatmap, unknown_mask != fg_mask, annotated_img)
+        infer_data = DataWrapper(torch.from_numpy(X_infer).float().to(device))
+        
+        return train_data, infer_data
+        
+
+    def _format_features(self, img, heatmap, mask, annotated_img=None):
+        colours = img[mask]
+        mask_probs = heatmap[mask]
+        coords = np.argwhere(mask)
+        X = np.hstack((mask_probs[:, np.newaxis], colours, coords))
+        return (X - X.mean(axis=0)) / X.std(axis=0)
+
+
+    def _train(self, model, train_data):
+        train_loader = DataLoader(dataset=train_data, batch_size=300, shuffle=True)
+
+        criterion = nn.BCEWithLogitsLoss()
+        optimiser = optim.Adam(model.parameters(), lr=0.01)
+        model.train()
+        for e in range(2):
+            epoch_loss = 0
+            for X_batch, y_batch in train_loader:
+                X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+                optimiser.zero_grad()
+
+                y_pred = model(X_batch)
+
+                loss = criterion(y_pred, y_batch.unsqueeze(1))
+                epoch_loss = loss.item()
+
+                loss.backward()
+                optimiser.step()
+
+            print("Epoch: {} | Loss: {}".format(e, epoch_loss))
+
+
+    def _infer(self, model, infer_data):
+        infer_loader = DataLoader(dataset=infer_data, batch_size=100, shuffle=False)
+        
+        y_preds = np.array([], dtype=float)
+        model.eval()
+        with torch.no_grad():
+            for X_batch in infer_loader:
+                X_batch.to(device)
+                y_batch_preds = model(X_batch)
+                y_preds = np.hstack((y_preds, y_batch_preds.to('cpu').numpy().squeeze()))
+
+        # (optimise) thresholds used for trimap
+        trimap_preds = np.where(y_preds < 0.2, 0, y_preds) 
+        trimap_preds = np.where(np.logical_and(trimap_preds >= 0.2, trimap_preds < 0.8), 0.5, trimap_preds)
+        trimap_preds = np.where(trimap_preds >= 0.8, 1, trimap_preds)
+        return trimap_preds
 
 
     def _get_mask(self, subject, thresholds=None, preference=None, target=None):
