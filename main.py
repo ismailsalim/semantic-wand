@@ -3,26 +3,26 @@ from pipeline.masking_stage import MaskingStage
 from pipeline.trimap_stage import TrimapStage
 from pipeline.refinement_stage import RefinementStage
 
+from demo.app import App
+
 import argparse
 import os
 import time
-# import logging
-
+import tkinter as tk
 import cv2
 
 def main():
-    # logging.basicConfig(filename='pipeline.log', level=logging.DEBUG, 
-    #                 format='%(asctime)s:%(levelname)s:%(message)s')
-    # logging.getLogger('matplotlib.font_manager').disabled = True
-
-    # (refactor) change to YAML?
     parser = argparse.ArgumentParser()
-    
+
+    # interactive demo (w/ scribbles) or not
+    parser.add_argument('--interactive', action='store_true',
+                        help='True for object selection, False for just one foreground object')
+
     # for image specification
-    parser.add_argument('img_file',
+    parser.add_argument('--input_img',
                         help='the name of a specific image to be processed (inc. extension)')
-    parser.add_argument('--annotated_file', 
-                    help='the name of a specific annotated image (inc. extension)')
+    parser.add_argument('--annotations', 
+                        help='the name of a specific annotated image (inc. extension)')
     parser.add_argument('--img_dir', 
                         help='where input image(s) and results are stored (if not in .examples/img_filename/)')
     parser.add_argument('--max_img_dim', type=int, default=1000,
@@ -37,15 +37,15 @@ def main():
                         help='Mask R-CNN probability threshold for conversion of soft mask to binary mask')
 
     # for trimap stage specification
-    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.99, 0.995],
+    parser.add_argument('--def_fg_thresh', type=float, default=0.99,
                         help='Mask R-CNN pixel probability thresholds used for definite foreground')
-    parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.1, 0.075, 0.05],
+    parser.add_argument('--unknown_thresh', type=float, default=0.1,
                         help='Mask R-CNN pixel probability threshold used for unknown region')
-    parser.add_argument('--epochs', type=int, default=5, 
+    parser.add_argument('--epochs', type=int,  
                         help='Number of epochs for training trimap network')
-    parser.add_argument('--lr', type=float, default=0.0001, 
+    parser.add_argument('--lr', type=float, default=0.001, 
                         help='Learning rate during training of trimap network')
-    parser.add_argument('--batch_size', type=int, default=400, 
+    parser.add_argument('--batch_size', type=int, default=12000, 
                         help='Batch size used for training of trimap network')    
     parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
                         help='Probability below which trimap network inference is classified as background')
@@ -61,35 +61,37 @@ def main():
 
     args = parser.parse_args()
     
-    # initialise stages
+    # initialise stages of pipeline
     masking_stage = MaskingStage(args.mask_config, args.score_thresh, args.mask_thresh)
-    trimap_stage = TrimapStage(args.def_fg_threshs, args.unknown_threshs,
+    trimap_stage = TrimapStage(args.def_fg_thresh, args.unknown_thresh,
                                 args.epochs, args.lr, args.batch_size,
                                 args.unknown_lower_bound, args.unknown_upper_bound)  
     refinement_stage = RefinementStage(args.matting_weights)
     
-    # initialise pipeline with stages
     pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, 
                         args.iterations, args.max_img_dim) 
 
-    # for saving pipeline results
-    img, annotated_img, img_id, output_dir = setup_io(args.img_file, 
-                                                        args.annotated_file, 
+    if args.interactive:
+        root = tk.Tk()
+        app = App(root, pipeline)
+        root.deiconify()
+        app.mainloop()
+    else:
+        assert args.input_img is not None, "Must specify an input image!"
+        img, annotated_img, img_id, output_dir = setup_io(args.input_img, 
+                                                        args.annotations, 
                                                         args.img_dir)
-
-    # run image through pipeline
-    results = pipeline(img, annotated_img)
-    save_results(results, img_id, output_dir)
+        results = pipeline(img, annotated_img)
+        save_results(results, img_id, output_dir)
 
 
 def setup_io(img_file, annotated_file, img_dir):
     img_id = os.path.splitext(img_file)[0]  
+    
     if img_dir is None:
         img_dir = os.path.join('./examples', img_id)
 
     img = cv2.imread(os.path.join(img_dir, img_file))
-    if img is None:
-        raise ValueError("Input image not found!")
     
     if annotated_file:
         annotated_img = cv2.imread(os.path.join(img_dir, annotated_file))

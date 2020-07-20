@@ -1,6 +1,8 @@
-import tkinter as tk
-
 from demo.app import App
+
+import tkinter as tk
+import argparse
+
 
 def main():
     root = tk.Tk()

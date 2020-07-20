@@ -1,3 +1,11 @@
+from demo.controller import Controller
+from demo.canvas import CanvasImage
+
+from pipeline.masking_stage import MaskingStage
+from pipeline.trimap_stage import TrimapStage
+from pipeline.refinement_stage import RefinementStage
+from pipeline.pipe import Pipeline
+
 import tkinter as tk
 from tkinter import ttk, filedialog
 import cv2
@@ -5,20 +13,15 @@ import os
 from PIL import Image
 import numpy as np
 
-from demo.controller import Controller
-from demo.canvas import CanvasImage
-
-from pipeline.pipe import Pipeline
-
 class App(tk.Frame):
-    def __init__(self, root):
+    def __init__(self, root, pipeline):
         super().__init__(root)
         self.root = root
         self.root.title('INTERACTIVE DEMO')
         self.root.geometry("1200x1000")
         self.root.resizable(width=False, height=False)
 
-        self.controller = Controller(Pipeline(), self.update_canvas)
+        self.controller = Controller(pipeline, self.update_canvas)
 
         self.add_menu()
         self.add_canvas()
