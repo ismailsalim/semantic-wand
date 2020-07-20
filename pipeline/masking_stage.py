@@ -72,11 +72,7 @@ class MaskingStage:
         
         # (review) current used for alpha refinement loop
         pred_box = subject.get('pred_boxes').tensor.cpu().numpy()[0]
-        height = pred_box[3] - pred_box[1]
-        width = pred_box[2] - pred_box[0]
-
-        subject_area = (height, width) 
-        return subject, subject_area
+        return subject, pred_box
 
 
     def _most_annotated(self, instances, annotated_img):

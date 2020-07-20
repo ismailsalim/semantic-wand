@@ -25,6 +25,7 @@ from detectron2.modeling import build_model
 # from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
 # from detectron2.utils.logger import setup_logger
 # from detectron2.structures import Instances
+import logging
 
 class Predictor:
   """
@@ -38,12 +39,12 @@ class Predictor:
   """
 
   def __init__(self, cfg, mask_threshold):
-    self.cfg = cfg.clone()  
+    self.cfg = cfg.clone() 
     self.model = build_model(self.cfg)
     self.model.eval()
     self.metadata = MetadataCatalog.get(cfg.DATASETS.TEST[0])
 
-    checkpointer = DetectionCheckpointer(self.model)
+    checkpointer = DetectionCheckpointer(self.model) 
     checkpointer.load(cfg.MODEL.WEIGHTS)
 
     self.transform_gen = T.ResizeShortestEdge(

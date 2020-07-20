@@ -1,4 +1,7 @@
 from pipeline.pipe import Pipeline
+from pipeline.masking_stage import MaskingStage
+from pipeline.trimap_stage import TrimapStage
+from pipeline.refinement_stage import RefinementStage
 
 import argparse
 import os
@@ -22,22 +25,33 @@ def main():
                     help='the name of a specific annotated image (inc. extension)')
     parser.add_argument('--img_dir', 
                         help='where input image(s) and results are stored (if not in .examples/img_filename/)')
-    parser.add_argument('--max_img_dim', type=int, default=1500,
+    parser.add_argument('--max_img_dim', type=int, default=1000,
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
 
     # for masking stage specification
     parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
-    parser.add_argument('--score_thresh', type=float, default=0.8, 
+    parser.add_argument('--score_thresh', type=float, default=0.5, 
                         help='Mask R-CNN score threshold for instance recognition')
     parser.add_argument('--mask_thresh', type=float, default=0.5, 
                         help='Mask R-CNN probability threshold for conversion of soft mask to binary mask')
 
     # for trimap stage specification
-    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.98, 0.985, 0.99, 0.995],
+    parser.add_argument('--def_fg_threshs', type=float, nargs='+', default=[0.99, 0.995],
                         help='Mask R-CNN pixel probability thresholds used for definite foreground')
     parser.add_argument('--unknown_threshs', type=float, nargs='+', default=[0.1, 0.075, 0.05],
                         help='Mask R-CNN pixel probability threshold used for unknown region')
+    parser.add_argument('--epochs', type=int, default=5, 
+                        help='Number of epochs for training trimap network')
+    parser.add_argument('--lr', type=float, default=0.0001, 
+                        help='Learning rate during training of trimap network')
+    parser.add_argument('--batch_size', type=int, default=400, 
+                        help='Batch size used for training of trimap network')    
+    parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
+                        help='Probability below which trimap network inference is classified as background')
+    parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
+                        help='Probability above which trimap network inference is classified as foreground')
+
 
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
@@ -46,22 +60,25 @@ def main():
                         help='Number of iterations for alpha/trimap feedback loop')
 
     args = parser.parse_args()
+    
+    # initialise stages
+    masking_stage = MaskingStage(args.mask_config, args.score_thresh, args.mask_thresh)
+    trimap_stage = TrimapStage(args.def_fg_threshs, args.unknown_threshs,
+                                args.epochs, args.lr, args.batch_size,
+                                args.unknown_lower_bound, args.unknown_upper_bound)  
+    refinement_stage = RefinementStage(args.matting_weights)
+    
+    # initialise pipeline with stages
+    pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, 
+                        args.iterations, args.max_img_dim) 
 
-    pipeline = Pipeline(max_img_dim = args.max_img_dim,
-                        mask_config = args.mask_config,
-                        roi_score_threshold = args.score_thresh,
-                        mask_threshold = args.mask_thresh,
-                        def_fg_thresholds = args.def_fg_threshs,
-                        unknown_thresholds = args.unknown_threshs,
-                        matting_weights = args.matting_weights,
-                        iterations = args.iterations) 
-
+    # for saving pipeline results
     img, annotated_img, img_id, output_dir = setup_io(args.img_file, 
                                                         args.annotated_file, 
                                                         args.img_dir)
 
+    # run image through pipeline
     results = pipeline(img, annotated_img)
-
     save_results(results, img_id, output_dir)
 
 

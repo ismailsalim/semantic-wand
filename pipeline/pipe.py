@@ -1,7 +1,3 @@
-from pipeline.masking_stage import MaskingStage
-from pipeline.trimap_stage import TrimapStage
-from pipeline.refinement_stage import RefinementStage
-
 import os
 from collections import defaultdict
 
@@ -9,21 +5,13 @@ import cv2
 import numpy as np
 
 class Pipeline:
-    def __init__(self, max_img_dim = 1000,
-                        mask_config = 'Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
-                        roi_score_threshold = 0.5,
-                        mask_threshold = 0.5,
-                        def_fg_thresholds = [0.99, 0.995],
-                        unknown_thresholds = [0.1, 0.075, 0.05],
-                        matting_weights = './matting_network/FBA.pth',
-                        iterations = 3):
+    def __init__(self, masking_stage, trimap_stage, refinement_stage, 
+                        iterations=2, max_img_dim=1000):
+        self.masking_stage = masking_stage
+        self.trimap_stage = trimap_stage
+        self.refinement_stage = refinement_stage
+
         self.max_img_dim = max_img_dim
-
-        # (refactor) decouple from stages
-        self.masking_stage = MaskingStage(mask_config, roi_score_threshold, mask_threshold)
-        self.trimap_stage = TrimapStage(def_fg_thresholds, unknown_thresholds)
-        self.refinement_stage = RefinementStage(matting_weights)
-
         self.iterations = iterations
         self.results = defaultdict(list)
 
@@ -62,12 +50,15 @@ class Pipeline:
             if annotated_img is not None:
                 annotated_img = self._rescale_img(annotated_img)
 
-        subject, subject_area = self.to_masking_stage(img, annotated_img)
+        subject, bounding_box = self.to_masking_stage(img, annotated_img)
 
-        trimap = self.to_trimap_stage(subject, img, annotated_img)
+        trimap = self.to_trimap_stage(subject, img, bounding_box, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
 
+        height = bounding_box[3] - bounding_box[1]
+        width = bounding_box[2] - bounding_box[0]
+        subject_area = (height, width) 
         self.alpha_feedback(img, trimap, alpha, subject_area, 1)
 
         return self.results
@@ -79,12 +70,15 @@ class Pipeline:
         # (refactor) move this out of pipe
         self.results['instances'] = self.masking_stage.visualise(instance_preds, img, 0.5)
         
-        subject, subject_area = self.masking_stage.get_subject(instance_preds, img, annotated_img)
-        return subject, subject_area
+        subject, bounding_box = self.masking_stage.get_subject(instance_preds, img, annotated_img)
+        return subject, bounding_box
 
 
-    def to_trimap_stage(self, subject, img, annotated_img=None):
-        heatmap, trimap, fg_mask, unknown_mask = self.trimap_stage.process_subject(subject, img, annotated_img)
+    def to_trimap_stage(self, subject, img, bounding_box, annotated_img=None):
+        heatmap, trimap, fg_mask, unknown_mask = self.trimap_stage.process_subject(subject, 
+                                                                                img,                 
+                                                                                bounding_box.astype(int),
+                                                                                annotated_img)
         
         # (refactor) move this out of pipe
         self.results['heatmap'] = heatmap*255
