@@ -15,12 +15,17 @@ You can install the correct version of Detectron2 (with cuda) according to the i
 
 ## Use
 ### 1. Interactive app
-The app is built with Python's tkinter. Hopefully, usage is self-explanatory from the interface.
+The app is built with Python's Tk interface. Hopefully, usage is self-explanatory from the interface.
 
 To start the app, run from the command line:
 ```bash
-python demo.py
+python main.py --interactive
 ```
+
+To see all the arguments that you can experiment with, run:
+```bash
+python main.py --help
+``` 
 
 ### 2. Script for intermediate pipeline results
 This script reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte in directories that can also be specified (directories must exist already).
@@ -29,38 +34,35 @@ Matting will only be done for the **largest identified object in the image**.
 
 This script is useful for experimentation with various arguments as shown below:
 ```bash
-# This finds donkey.png in ./examples/donkey/ and feeds the image into the pipeline
-# using the default Mask R-CNN pre-trained model.
-python3 main.py donkey.png
+# This finds donkey.png in ./examples/donkey/ and feeds the image into the 
+# pipeline using the default Mask R-CNN pre-trained model.
+python main.py --input_img donkey.png
 
-# This performs two alpha/matting iterations in the feedback loop (both intermediary
-# results will be saved).
-python3 main.py donkey.png --iterations=2
+# This changes the maximum dimension of the image fed into the pipeline to 3000 
+# pixels (preserving the aspect ratio). 
+# To maintain the original input image size, make this value bigger than the 
+# largest dimension of the input image.
+python main.py input_img donkey.png --max_img_dim 3000
 
-# This uses a non-default model from Detectron2. Format follows directory structure
-# in the Detectron2 source code below.
+# This changes the learning rate and batch size used for the trimap generation
+# network to 0.0001 and 4000 respectively.
+python main.py --lr 0.0001 --batch_size 4000
+
+# This uses a non-default model from Detectron2. Format follows directory 
+# structure in the Detectron2 source code below.
 # https://github.com/facebookresearch/detectron2/tree/master/configs
-python3 main.py donkey.png --coarse_config=COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
+python main.py --input_img donkey.png --mask_config COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
-# This changes the maximum dimension of the image fed into the pipeline to 3000 pixels 
-# (preserving the aspect ratio). 
-# To maintain the original input image size, make this value bigger than the largest 
-# dimension of the input image.
-python3 main.py donkey.png --max_img_dim=3000
+
 ```
-
-To see all the arguments that you can experiment with, run:
-```bash
-python main.py --help
-``` 
 
 ## Directory Structure
 For easiest use, keep to the following structure:
 ```bash
 .
 ├── examples/
-│   ├── img_id_1 # directory containing input image (same identifier as the image file!)
-│   │   └── img_id_1.ext # .png or .jpg (same identifier as the image directory!)
+│   ├── img_id_1 # directory with input image (same id as the image file)
+│   │   └── img_id_1.ext # .png or .jpg (same id as the image directory)
 │   └── img_id_2
 │       └── img_id_2.ext
 ├── demo/
@@ -70,18 +72,19 @@ For easiest use, keep to the following structure:
 ├── masking_network/
 │   ├── models.py
 │   └── predictor.py
-├── matting_network
-│   ├── FBA.pth  # place pre-trained matting model here!
+├── matting_network/
+│   ├── FBA.pth  # PLACE PRE-TRAINED MATTING MODEL HERE (DOWNLOAD URL ABOVE)
 │   ├── layers_WS.py
 │   ├── models.py
 │   └── resnet_GN_WS.py
-├── pipeline
+├── pipeline/
 │   ├── masking_stage.py
 │   ├── pipe.py
 │   ├── refinement_stage.py
 │   └── trimap_stage.py
-├── main.py
-└── demo.py
+├── trimap_network/ 
+│   └── models.py
+└── main.py
 ```
 
-**Note:** The only thing that you have to do is add `FBA.pth` into `matting_network/` and esnure images used for `main.py` follow the specified structure show in `examples/`.
+**Note:** The only thing that you have to do is add `FBA.pth` into `matting_network/` and esnure images used for `main.py` follow the specified structure show in `examples/` (for easiest use).
