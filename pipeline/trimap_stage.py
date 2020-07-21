@@ -48,10 +48,13 @@ class TrimapStage:
         fg_mask = heatmap > self.def_fg_threshold
         unknown_mask = heatmap > self.unknown_threshold
 
+        if annotated_img is not None:
+            fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
+            unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
+
         boundary_mask = self._expand_bounds(bounding_box, img)
 
-        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, 
-                                                        boundary_mask, annotated_img)
+        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
         
         self.trimap_generator = build_model()
         
@@ -61,7 +64,6 @@ class TrimapStage:
         
         trimap = np.zeros(img.shape[:2], dtype=float) 
         trimap[fg_mask] = 1
-        # cv2.imwrite("./trimap_fg_mask.png", trimap*255)
 
         coords = np.argwhere(unknown_mask != fg_mask)
         for coord, pred in zip(coords, unknown_preds):
@@ -99,36 +101,24 @@ class TrimapStage:
         return mask
 
 
-    def _preprocess_data(self, img, heatmap, fg_mask, unknown_mask, boundary_mask, annotated_img=None):
-        if annotated_img is not None:
-            fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
-            unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
-
+    def _preprocess_data(self, img, heatmap, fg_mask, unknown_mask, boundary_mask):
         X_fg = self._format_features(img, heatmap, fg_mask)
         X_bg = self._format_features(img, heatmap, np.logical_and(~unknown_mask, boundary_mask))
-
-        # cv2.imwrite("./fg_mask.png", fg_mask*255)
-        # cv2.imwrite("./bg_mask.png", np.logical_and(~unknown_mask, boundary_mask)*255)
 
         y_fg = np.ones(len(X_fg))
         y_bg = np.zeros(len(X_bg))
 
         X_train = np.vstack((X_fg, X_bg))
         y_train = np.hstack((y_fg, y_bg))
-        logging.debug("Distribution of training samples {}".format(np.unique(y_train, return_counts=True)))
         
         train_std = X_train.std(axis=0)
         train_mean = X_train.mean(axis=0)
         X_train_norm = (X_train - train_mean)/train_std
-
         train_data = DataWrapper(torch.from_numpy(X_train_norm).float().to(device),
                                 torch.from_numpy(y_train).float().to(device))
 
-
         X_infer = self._format_features(img, heatmap, unknown_mask != fg_mask)
         X_infer_norm = (X_infer - train_mean)/train_std
-        # cv2.imwrite("./infer_mask.png", (unknown_mask != fg_mask)*255)
-
         infer_data = DataWrapper(torch.from_numpy(X_infer_norm).float().to(device))
         
         return train_data, infer_data
