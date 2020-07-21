@@ -7,6 +7,7 @@ class Controller:
         self.img = None
         self.model_results = None
         self.matte = None
+        self.trimap = None
 
         self.model = model
         self.update_canvas_cb = update_canvas_cb
@@ -22,6 +23,7 @@ class Controller:
         annotations = self.preprocess_annotations(annotations)
         self.model_results = self.model(self.img, annotations)
         self.matte = self.model_results['mattes'][-1] # get final matte
+        self.trimap = self.model_results['trimaps'][-1] # get final trimap
         self.update_canvas_cb(self.matte, with_matte=True)
 
 

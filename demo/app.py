@@ -35,7 +35,11 @@ class App(tk.Frame):
         self.menu.pack(side=tk.TOP, fill='x')
         self.load_button = tk.Button(self.menu, text='Load', command=self.load_img)
         self.load_button.pack(side=tk.LEFT)
-        self.save_button = tk.Button(self.menu, text='Save', command=self.save_matte)
+        self.save_button = tk.Button(self.menu, text='Save Matte', 
+                                    command=lambda: self.save(self.controller.matte, "matte"))
+        self.save_button.pack(side=tk.LEFT)
+        self.save_button = tk.Button(self.menu, text='Save Trimap', 
+                                    command=lambda: self.save(self.controller.trimap, "trimap"))
         self.save_button.pack(side=tk.LEFT)
         self.quit_button = tk.Button(self.menu, text='Quit', command=self.root.quit)
         self.quit_button.pack(side=tk.LEFT)
@@ -107,16 +111,14 @@ class App(tk.Frame):
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
 
-    def save_matte(self):
+    def save(self, img, img_type):
         self.menu.focus_set()
-        if self.controller.matte is None:
-            return
-
-        filename = filedialog.asksaveasfilename(parent=self.root, 
-                                            initialfile='{}_matte'.format(self.controller.filename),
-                                            filetypes = [('PNG image', '*.png')],
-                                            title = 'Save mask as...')
-        cv2.imwrite(filename, self.controller.matte)
+        if img is not None:
+            filename = filedialog.asksaveasfilename(parent=self.root, 
+                                                initialfile='{}_{}'.format(self.controller.filename, img_type),
+                                                filetypes = [('PNG image', '*.png')],
+                                                title = 'Save mask as...')
+            cv2.imwrite(filename, img)
 
 
     def process_img(self):
