@@ -24,7 +24,7 @@ class NoSubjectFoundError(Exception):
 
 
 class MaskingStage:
-    def __init__(self, cfg, roi_score_threshold, mask_threshold):
+    def __init__(self, cfg, roi_score_threshold):
         # get default Detectron2 Mask R-CNN configuration
         self.cfg = get_cfg() 
         self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
@@ -42,8 +42,7 @@ class MaskingStage:
         self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = roi_score_threshold       
         
         self.cfg.MODEL.META_ARCHITECTURE = 'ModifiedRCNN' # (refactor) pass in
-        self.mask_threshold = mask_threshold
-        self.predictor = Predictor(self.cfg, self.mask_threshold)
+        self.predictor = Predictor(self.cfg)
 
 
     def get_all_instances(self, img):

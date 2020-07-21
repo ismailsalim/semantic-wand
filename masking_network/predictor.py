@@ -38,7 +38,7 @@ class Predictor:
   4. Take one input image and produce a single output, instead of a batch.
   """
 
-  def __init__(self, cfg, mask_threshold):
+  def __init__(self, cfg):
     self.cfg = cfg.clone() 
     self.model = build_model(self.cfg)
     self.model.eval()
@@ -53,8 +53,6 @@ class Predictor:
 
     self.input_format = cfg.INPUT.FORMAT
     assert self.input_format in ["RGB", "BGR"], self.input_format
-
-    self.mask_threshold = mask_threshold
 
 
   def __call__(self, original_image):
@@ -78,6 +76,6 @@ class Predictor:
 
       # predictions = self.model([inputs], self.mask_thresh)
 
-      predictions = self.model([inputs], self.mask_threshold)
+      predictions = self.model([inputs], 0.5)
 
       return predictions

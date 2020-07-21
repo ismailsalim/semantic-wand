@@ -28,17 +28,16 @@ logging.debug("\n")
 
 class TrimapStage: 
     def __init__(self, def_fg_threshold, unknown_threshold,
-                epochs, lr, batch_size, unknown_lower_bound, unknown_upper_bound):
+                lr, batch_size, unknown_lower_bound, unknown_upper_bound):
         self.def_fg_threshold = def_fg_threshold
         self.unknown_threshold = unknown_threshold
-        self.epochs = epochs
         self.lr = lr
         self.batch_size = batch_size
         self.unknown_lower_bound = unknown_lower_bound
         self.unknown_upper_bound = unknown_upper_bound
 
-        logging.debug("lr: {}, epochs: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
-            lr, epochs, batch_size, unknown_lower_bound, unknown_upper_bound
+        logging.debug("lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
+            lr, batch_size, unknown_lower_bound, unknown_upper_bound
         ))
 
 

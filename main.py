@@ -14,62 +14,54 @@ import cv2
 def main():
     parser = argparse.ArgumentParser()
 
-    # interactive demo (w/ scribbles) or not
     parser.add_argument('--interactive', action='store_true',
-                        help='True for object selection, False for just one foreground object')
+                        help='To use interactive demo with scribbles for object selection')
 
-    # for image specification
+    # image specification for non interactive usage
     parser.add_argument('--input_img',
-                        help='the name of a specific image to be processed (inc. extension)')
+                        help='Name of a specific image to be processed (inc. extension)')
     parser.add_argument('--annotations', 
-                        help='the name of a specific annotated image (inc. extension)')
+                        help='Name of a specific annotated image (inc. extension)')
     parser.add_argument('--img_dir', 
-                        help='where input image(s) and results are stored (if not in .examples/img_filename/)')
+                        help='Where input image(s) and results are stored (if not in .examples/img_id/)')
     parser.add_argument('--max_img_dim', type=int, default=1000,
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
 
     # for masking stage specification
     parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
-    parser.add_argument('--score_thresh', type=float, default=0.5, 
+    parser.add_argument('--instance_thresh', type=float, default=0.05, 
                         help='Mask R-CNN score threshold for instance recognition')
-    parser.add_argument('--mask_thresh', type=float, default=0.5, 
-                        help='Mask R-CNN probability threshold for conversion of soft mask to binary mask')
-
+   
     # for trimap stage specification
     parser.add_argument('--def_fg_thresh', type=float, default=0.99,
-                        help='Mask R-CNN pixel probability thresholds used for definite foreground')
+                        help='Threshold above which mask pixels labelled as def fg for trimap network training')
     parser.add_argument('--unknown_thresh', type=float, default=0.1,
-                        help='Mask R-CNN pixel probability threshold used for unknown region')
-    parser.add_argument('--epochs', type=int,  
-                        help='Number of epochs for training trimap network')
+                        help='Threshold below which mask pixels labelled as def bg for trimap network training')
     parser.add_argument('--lr', type=float, default=0.001, 
                         help='Learning rate during training of trimap network')
     parser.add_argument('--batch_size', type=int, default=12000, 
                         help='Batch size used for training of trimap network')    
     parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
-                        help='Probability below which trimap network inference is classified as background')
+                        help='Probability below which trimap network inference is classified as bg')
     parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
-                        help='Probability above which trimap network inference is classified as foreground')
-
+                        help='Probability above which trimap network inference is classified as fg')
 
     # for refinement stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
-                        help='Size of kernel used for trimap erosion/dilation')
-    parser.add_argument('--iterations', type=int, default=0,
-                        help='Number of iterations for alpha/trimap feedback loop')
+                        help='Path to pre-trained matting model')
 
     args = parser.parse_args()
     
     # initialise stages of pipeline
-    masking_stage = MaskingStage(args.mask_config, args.score_thresh, args.mask_thresh)
+    masking_stage = MaskingStage(args.mask_config, args.instance_thresh)
     trimap_stage = TrimapStage(args.def_fg_thresh, args.unknown_thresh,
-                                args.epochs, args.lr, args.batch_size,
+                                args.lr, args.batch_size,
                                 args.unknown_lower_bound, args.unknown_upper_bound)  
     refinement_stage = RefinementStage(args.matting_weights)
     
     pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, 
-                        args.iterations, args.max_img_dim) 
+                        args.max_img_dim) 
 
     if args.interactive:
         root = tk.Tk()
