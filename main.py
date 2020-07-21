@@ -47,9 +47,13 @@ def main():
     parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
                         help='Probability above which trimap network inference is classified as fg')
 
-    # for refinement stage specification
+    # for matting stage specification
     parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
                         help='Path to pre-trained matting model')
+
+    # for refinement feedback loop
+    parser.add_argument('--feedback_thresh', type=int, default=0.01, 
+                         help='Min proportional change in trimap\'s def area to pass back into refinement stage')
 
     args = parser.parse_args()
     
@@ -61,7 +65,7 @@ def main():
     refinement_stage = RefinementStage(args.matting_weights)
     
     pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, 
-                        args.max_img_dim) 
+                        args.feedback_thresh, args.max_img_dim) 
 
     if args.interactive:
         root = tk.Tk()

@@ -5,12 +5,14 @@ import cv2
 import numpy as np
 
 class Pipeline:
-    def __init__(self, masking_stage, trimap_stage, refinement_stage, max_img_dim=1000):
+    def __init__(self, masking_stage, trimap_stage, refinement_stage, 
+                feedback_thresh=0.3, max_img_dim=1000):
         self.masking_stage = masking_stage
         self.trimap_stage = trimap_stage
         self.refinement_stage = refinement_stage
 
         self.max_img_dim = max_img_dim
+        self.feedback_thresh = feedback_thresh
         self.results = defaultdict(list)
 
 
@@ -53,11 +55,8 @@ class Pipeline:
         trimap = self.to_trimap_stage(subject, img, bounding_box, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
-
-        # height = bounding_box[3] - bounding_box[1]
-        # width = bounding_box[2] - bounding_box[0]
-        # subject_area = (height, width) 
-        # self.alpha_feedback(img, trimap, alpha, subject_area, 1)
+        
+        self.to_refinement_loop(trimap, alpha, img)
 
         return self.results
 
@@ -96,19 +95,19 @@ class Pipeline:
         return alpha
 
 
-    def alpha_feedback(self, img, trimap, alpha, box_dim, iteration):
-        if iteration <= self.iterations:
-            avg_dim = sum(box_dim)/2 # optimise
-            level = avg_dim/iteration # optimise
-            trimap = self.trimap_stage.process_alpha(alpha, trimap, level)
+    def to_refinement_loop(self, trimap, alpha, img):
+        prev_def_area = np.sum(np.logical_or(trimap==1.0, trimap==0.0))
+
+        trimap[alpha==0.0] = 0.0
+        trimap[alpha==1.0] = 1.0
+        
+        new_def_area = np.sum(np.logical_or(trimap==1.0, trimap==0.0))
+        def_area_delta = (new_def_area - prev_def_area)/prev_def_area
+
+        if def_area_delta > self.feedback_thresh:
             self.results['trimaps'].append(trimap*255)
-
-            fg, alpha, matte = self.refinement_stage.process(trimap, img)
-            self.results['foregrounds'].append(fg*255)
-            self.results['alphas'].append(alpha*255)
-            self.results['mattes'].append(matte*255)
-
-            self.alpha_feedback(img, trimap, alpha, box_dim, iteration+1)
+            alpha = self.to_refinement_stage(trimap, img)
+            self.to_refinement_loop(trimap, alpha, img)
 
 
     def _rescale_img(self, img):
