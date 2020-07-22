@@ -1,6 +1,8 @@
 from masking_network.predictor import Predictor
 from masking_network.models import ModifiedRCNN
 
+import logging
+
 import torch
 import torchvision
 import numpy as np
@@ -13,18 +15,11 @@ from detectron2.layers.mask_ops import paste_masks_in_image
 from detectron2.utils.memory import retry_if_cuda_oom
 from detectron2.utils.visualizer import _create_text_labels, GenericMask, ColorMode
 
-
-class NoInstancesDetectedError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-class NoSubjectFoundError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
+pipe_logger = logging.getLogger("pipeline")
 
 class MaskingStage:
-    def __init__(self, cfg, roi_score_threshold):
+    def __init__(self, cfg="Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml", 
+                        roi_score_threshold=0.05):
         # get default Detectron2 Mask R-CNN configuration
         self.cfg = get_cfg() 
         self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
@@ -44,24 +39,31 @@ class MaskingStage:
         self.cfg.MODEL.META_ARCHITECTURE = 'ModifiedRCNN' # (refactor) pass in
         self.predictor = Predictor(self.cfg)
 
+        pipe_logger.info("ROI Score Threshold: {}".format(roi_score_threshold))
+
 
     def get_all_instances(self, img):
+        pipe_logger.info("Instance detection starting...")
         preds = self.predictor(img)
 
         # (refactor) single/multiple image optimisation for eval
         instances = preds[0]['instances']
         if len(instances) == 0:
-            raise NoInstancesDetectedError("No instances found during masking stage!")
-
+            pipe_logger.error("No instances found!")
+            raise ValueError("No instances found!")
+        
+        pipe_logger.info("Instances detected!")
         return instances
 
 
     def get_subject(self, instances, img, annotated_img=None):
+        pipe_logger.info("Subject identification starting...")
         if annotated_img is not None:
             instance_masks = self._process_mask_probs(instances, 0.5)
             idx = self._most_annotated(instance_masks, annotated_img)
             if idx == None:
-                raise NoSubjectFoundError("Can't find an object to extract!")
+                pipe_logger.error("Can't identify a subject from annotations!")
+                raise ValueError("Can't identify a subject from annotations!")
 
         # (refactor) allow this in demo (w/ select subject button)    
         else: # find instance with largest predicted box area in the image
@@ -71,6 +73,8 @@ class MaskingStage:
         
         # (review) current used for alpha refinement loop
         pred_box = subject.get('pred_boxes').tensor.cpu().numpy()[0]
+
+        pipe_logger.info("Subject identified from annotations!")
         return subject, pred_box
 
 

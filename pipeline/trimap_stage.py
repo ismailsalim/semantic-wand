@@ -2,6 +2,7 @@ from trimap_network.models import build_model, DataWrapper
 
 import detectron2
 from detectron2.layers.mask_ops import _do_paste_mask
+
 from detectron2.utils.memory import retry_if_cuda_oom
 
 import torch
@@ -20,15 +21,12 @@ BYTES_PER_FLOAT = 4
 GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
 device = torch.device("cuda:0")
 
-logging.basicConfig(filename='trimap.log', level=logging.DEBUG, 
-                format='%(asctime)s:%(levelname)s:%(message)s')
-logging.getLogger('matplotlib.font_manager').disabled = True
-logging.debug("\n")
-
+pipe_logger = logging.getLogger("pipeline")
 
 class TrimapStage: 
-    def __init__(self, def_fg_threshold, unknown_threshold,
-                lr, batch_size, unknown_lower_bound, unknown_upper_bound):
+    def __init__(self, def_fg_threshold=0.99, unknown_threshold=0.1,
+                        lr=0.001, batch_size=12000, 
+                        unknown_lower_bound=0.01, unknown_upper_bound=0.99):
         self.def_fg_threshold = def_fg_threshold
         self.unknown_threshold = unknown_threshold
         self.lr = lr
@@ -36,12 +34,13 @@ class TrimapStage:
         self.unknown_lower_bound = unknown_lower_bound
         self.unknown_upper_bound = unknown_upper_bound
 
-        logging.debug("lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
+        pipe_logger.info("lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
             lr, batch_size, unknown_lower_bound, unknown_upper_bound
         ))
 
 
     def process_subject(self, subject, img, bounding_box, annotated_img=None):
+        pipe_logger.info("Trimap generation starting...")
         heatmap = self._resize_subject(subject)
 
         fg_mask = heatmap > self.def_fg_threshold
@@ -68,6 +67,7 @@ class TrimapStage:
         for coord, pred in zip(coords, unknown_preds):
             trimap[coord[0], coord[1]] = pred
 
+        pipe_logger.info("Trimap generated!")
         return heatmap, trimap, fg_mask, unknown_mask
 
 
@@ -131,6 +131,7 @@ class TrimapStage:
         
 
     def _train(self, model, train_data):
+        pipe_logger.info("Training trimap generator on new image...")
         y = train_data.y.clone().cpu().float().numpy()
         class_counts = np.unique(y, return_counts=True)[1]
         weights = 1.0 / class_counts
@@ -161,15 +162,17 @@ class TrimapStage:
                 loss.backward()
                 optimiser.step()
             
-            logging.debug("Epoch: {} | Loss: {}".format(epoch, epoch_loss))
+            pipe_logger.info("Epoch: {} | Loss: {}".format(epoch, epoch_loss))
             
             if epoch_loss > previous_loss:
                 end = time.time()
                 converging = False
-                logging.debug("Training took {} seconds".format(end-start))
             else:
                 previous_loss = epoch_loss
                 epoch  += 1
+
+        pipe_logger.info("Training completed!")
+
 
 
     def _infer(self, model, infer_data):
@@ -190,8 +193,6 @@ class TrimapStage:
                                                 trimap_preds < self.unknown_upper_bound), 
                                                 0.5, trimap_preds)
         trimap_preds = np.where(trimap_preds >= self.unknown_upper_bound, 1, trimap_preds)
-        
-        logging.debug("Preds: {}".format(np.unique(trimap_preds, return_counts=True)))
         return trimap_preds 
         
 

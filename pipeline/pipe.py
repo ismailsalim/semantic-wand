@@ -1,12 +1,15 @@
 import os
 from collections import defaultdict
+import logging
 
 import cv2
 import numpy as np
 
+pipe_logger = logging.getLogger("pipeline")
+
 class Pipeline:
     def __init__(self, masking_stage, trimap_stage, refinement_stage, 
-                feedback_thresh=0.3, max_img_dim=1000):
+                feedback_thresh=0.01, max_img_dim=1000):
         self.masking_stage = masking_stage
         self.trimap_stage = trimap_stage
         self.refinement_stage = refinement_stage
@@ -14,6 +17,9 @@ class Pipeline:
         self.max_img_dim = max_img_dim
         self.feedback_thresh = feedback_thresh
         self.results = defaultdict(list)
+
+        pipe_logger.info("Alpha feedback iteration threshold: {}".format(feedback_thresh))
+        pipe_logger.info("Max image dimension: {}".format(max_img_dim))
 
 
     def __call__(self, img, annotated_img=None):

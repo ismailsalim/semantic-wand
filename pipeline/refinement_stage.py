@@ -14,18 +14,22 @@ from matting_network.models import build_model
 
 import os
 import argparse
+import logging
 
 import cv2
 import numpy as np
 import torch
 
+pipe_logger = logging.getLogger("pipeline")
 
 class RefinementStage:
-    def __init__(self, weights):
+    def __init__(self, weights='./matting_network/FBA.pth'):
         self.model = build_model(weights) 
 
 
     def process(self, trimap, img):
+        pipe_logger.info("Refinement iteration starting...")
+
         h, w = trimap.shape
 
         # fba matting network requires two channel trimap
@@ -38,6 +42,8 @@ class RefinementStage:
         fg, alpha = self._pred(img, fba_trimap, self.model)
         matte = cv2.cvtColor(fg, cv2.COLOR_RGB2RGBA) 
         matte[:, :, 3] = alpha
+
+        pipe_logger.info("Refinement iteration completed!")
         return fg, alpha, matte
         
 
