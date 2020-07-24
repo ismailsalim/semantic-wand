@@ -59,7 +59,7 @@ def main():
         eval_logger.info("Alpha prediction file id: {}".format(pred_id))
         eval_logger.info("Alpha ground truth file id: {}".format(alpha_id))
 
-        eval_logger.info("Gradient: {0:.4f}, Connectivity: {1:.4f}, MSE: {2:.4f}, SAD: {3:.4f}".format(
+        eval_logger.info("Gradient: {0:.4f}, Connectivity: {1:.4f}, MSE: {2:.4f}, SAD: {3:.4f}\n".format(
             gradient, connectivity, mse, sad
         ))
 
@@ -73,5 +73,4 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()
