@@ -22,31 +22,39 @@ To start the app, run from the command line:
 python main.py --interactive
 ```
 
-### 2. Script for complete intermediate pipeline results
-This script reads one image (.jpg or .png) specified in the command line and saves all the intermediate predictions and final matte in directories that can also be specified (directories must exist already).
-
-Matting will only be done for the **largest identified object in the image**.
-
-### Example usage of arguments
+### 2. Multiple images 
 ```bash
-# This finds donkey.png in ./examples/donkey/ and feeds the image into the 
-# pipeline using the default Mask R-CNN pre-trained model.
-python main.py --input_img donkey.png
+# This runs every image in the specified input directory and their corresponding 
+# scribble through the pipeline and outputs fg, alpha, and matte predictions to the
+# specified output folders. 
+# - Assumes that scribbles and images are named identically!
+# - Useful to produce the output to run `eval.py` for accuracy statistics.
+python main.py -multiple --images_dir input/images --scribbles_dir input/scribbles --fgs_dir output/fgs --alphas_dir output/alphas --mattes_dir output/mattes 
+```
 
+### 3. Complete intermediate pipeline results
+```bash
+# This runs the specified image with the specified scribble and saves all the 
+# intermediate and final results that generated throughout the pipeline such as 
+# the various trimap iterations.
+python main.py -intermediate --image img.png --scribbles scribble.png --output output/
+```
+
+### Additional arguments
+```bash
 # This changes the maximum dimension of the image fed into the pipeline to 3000 
-pixels (preserving the aspect ratio). 
 # To maintain the original input image size, make this value bigger than the 
 # largest dimension of the input image.
-python main.py input_img donkey.png --max_img_dim 3000
+python main.py  ... --max_img_dim 3000
 
 # This changes the learning rate and batch size used for the trimap generation
-# network to 0.0001 and 4000 respectively and will launch the interactive demo
-python main.py --interactive --lr 0.0001 --batch_size 4000
+# network to 0.0001 and 4000 respectively.
+python main.py ... --lr 0.0001 --batch_size 4000
 
 # This uses a non-default model from Detectron2. Format follows directory structure 
 # in the Detectron2 source code: 
 # https://github.com/facebookresearch/detectron2/tree/master/configs
-python main.py --input_img donkey.png --mask_config COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
+python main.py ... --mask_config COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
 ```
 ## Evaluation
@@ -67,11 +75,6 @@ For easiest use, keep to the following structure:
 │   ├── app.py
 │   ├── canvas.py
 │   └── controller.py
-├── examples/
-│   ├── img_id_1 # directory with input image (same id as the image file)
-│   │   └── img_id_1.ext # .png or .jpg (same id as the image directory)
-│   └── img_id_2
-│       └── img_id_2.ext
 ├── masking_network/
 │   ├── models.py
 │   └── predictor.py
@@ -91,8 +94,6 @@ For easiest use, keep to the following structure:
 ├── eval.py
 └── main.py
 ```
-
-**Note:** The only thing that you have to do is add `FBA.pth` into `matting_network/` and esnure images used for `main.py` follow the specified structure show in `examples/` (for easiest use).
 
 
 

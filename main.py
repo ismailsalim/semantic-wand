@@ -9,7 +9,6 @@ from utils.logger import setup_logger
 
 import argparse
 import os
-import time
 import tkinter as tk
 import cv2
 import numpy as np
@@ -25,10 +24,9 @@ def main():
                         help='Folder of images and scribbles with simple results')
 
     # USE CASE 1: One image with complete intermediate and final results 
-    parser.add_argument('--image',
-                        help='Path to specific image to be processed')
-    parser.add_argument('--scribbles', 
-                        help='Name of a specific annotated image (inc. extension)')
+    parser.add_argument('--image', help='Path to a specific image to be processed')
+    parser.add_argument('--scribbles', help="Paths to a specific scribbles image")
+    parser.add_argument('--output', help="Path to folder where all output will be saved")
 
     # USE CASE 2: Folder of images and scribbles with only final results
     parser.add_argument('--images_dir', help='Path to folder of images that will be processed')
@@ -42,6 +40,7 @@ def main():
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
     parser.add_argument('--feedback_thresh', type=int, default=0.01, 
                          help='Min proportional change in trimap\'s def area to pass back into refinement stage')
+    
     # for masking stage specification
     parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
                         help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
@@ -70,7 +69,6 @@ def main():
     
     if not os.path.exists("logs"):
         os.mkdir("logs")
-    
     pipe_logger = setup_logger("pipeline", "logs/pipeline.log")
     pipe_logger.info("\n\n INITIALISING PIPELINE \n")
 
@@ -82,7 +80,13 @@ def main():
     pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, 
                         args.feedback_thresh, args.max_img_dim) 
     
-    if args.multiple:
+    if args.interactive:
+        root = tk.Tk()
+        app = App(root, pipeline, args.max_img_dim)
+        root.deiconify()
+        app.mainloop()   
+
+    if args.multiple: # useful for evaluation
         assert None not in (args.images_dir, args.scribbles_dir, args.fgs_dir, args.alphas_dir, args.mattes_dir), (
             "Input and output directories must be specified with this usage!"
         )
@@ -90,80 +94,68 @@ def main():
         img_ids = sorted(os.listdir(args.images_dir))
         scribble_ids = sorted(os.listdir(args.scribbles_dir))
 
-        assert len(img_ids) == len(scribble_ids), "Image and scribble folders must be same size!"
-           
-        if not os.path.exists(args.fgs_dir):
-            os.mkdir(args.fgs_dir)
-
-        if not os.path.exists(args.alphas_dir):
-            os.mkdir(args.alphas_dir)
-
-        if not os.path.exists(args.mattes_dir):
-            os.mkdir(args.mattes_dir)
-
-        print(args.images_dir)
+        # assumes images and scribbles are identically named
+        assert img_ids == scribble_ids, "Image and scribble folders must be same size!"
+        
+        setup_output(args.fgs_dir, args.alphas_dir, args.mattes_dir)
 
         for img_file, scribbles_file in zip(img_ids, scribble_ids):
             
-            img = cv2.imread(os.path.join(args.images_dir, img_file))
-            scribbles = cv2.imread(os.path.join(args.scribbles_dir, scribbles_file), 0).astype(np.int32)
-            assert img.shape[:2] == scribbles.shape[:2], (
-                "Image ({}): {} and Scribbles ({}): {} must be same size!".format(img.shape[:2], img_file, 
-                                                                                    scribble_file, scribbles.shape[:2]))
+            img_path = os.path.join(args.images_dir, img_file)
+            scribbles_path = os.path.join(args.scribbles_dir, scribbles_file)
 
-            scribbles[scribbles == 128] = -1 # convert unnannotated pixels
-            scribbles[scribbles == 255] = 1 # convert fg scribbles
-            scribbles[scribbles == 0] = 0 # convert bg scribbles
-
+            img, scribbles = pre_process(img_path, scribbles_path) 
             results = pipeline(img, scribbles)
 
             cv2.imwrite(os.path.join(args.fgs_dir, img_file), results['foregrounds'][-1])
             cv2.imwrite(os.path.join(args.alphas_dir, img_file), results['alphas'][-1])
             cv2.imwrite(os.path.join(args.mattes_dir, img_file), results['mattes'][-1])
 
+
     if args.intermediate:
-        assert None not in (args.image, args.scribbles), "Must specify one image and one corresponding scribbles"
-
-
-        img = cv2.imread(args.image)
-        scribbles = cv2.imread(args.scribbles, 0).astype(np.int32)
-        assert img.shape[:2] == scribbles.shape[:2], (
-            "Image ({}): {} and Scribbles ({}): {} must be same size!".format(img.shape[:2], os.path.splitext(os.path.basename(args.image)), 
-                                                                                os.path.splitext(os.path.basename(args.scribbles)), scribbles.shape[:2]))
-
-        scribbles[scribbles == 128] = -1 # convert unnannotated pixels
-        scribbles[scribbles == 255] = 1 # convert fg scribbles
-        scribbles[scribbles == 0] = 0 # convert bg scribbles
-
+        assert None not in (args.image, args.scribbles, args.output), (
+            "Must specify one image, one corresponding scribbles, and output folder!")
+        
+        img, scribbles = pre_process(args.image, args.scribbles) 
         results = pipeline(img, scribbles)
 
-        img_id = os.path.splitext(os.path.basename(args.image))
-        parent = os.path.split(args.image)[0]
-        output_dir = os.path.join(parent, img_id + '_' + time.strftime("%d-%m--%H-%M-%S"))
-        os.mkdir(output_dir)
+        img_id = os.path.splitext(os.path.basename(args.image))[0]   
+        save_all_results(results, img_id, args.output)
 
-        save_all_results(results, img_id, output_dir)
 
-    if args.interactive:
-        root = tk.Tk()
-        app = App(root, pipeline, args.max_img_dim)
-        root.deiconify()
-        app.mainloop()   
+def pre_process(img_path, scribbles_path):
+    img = cv2.imread(img_path)
+    scribbles = cv2.imread(scribbles_path, 0).astype(np.int32)
+    assert img.shape[:2] == scribbles.shape[:2], (
+        "Image {}: {} and Scribbles {}: {} must be same size!".format(img.shape[:2], img_path, 
+                                                                    scribbles.shape[:2], scribbles_path, ))
+
+    scribbles[scribbles == 128] = -1 # convert unnannotated pixels
+    scribbles[scribbles == 255] = 1 # convert fg scribbles
+    scribbles[scribbles == 0] = 0 # convert bg scribbles
+    return img, scribbles
 
 
 def save_all_results(results, img_id, to_dir):
+    setup_output(to_dir)
     for i, (img_type, pred) in enumerate(results.items()):
         save_results_type(pred, img_id, '{}_{}'.format(i, img_type), to_dir)
 
 
 def save_results_type(pred, img_id, output_type, to_dir):
-    if type(pred) == list: # trimaps, foregrounds, alphas, mattes
+    if type(pred) == list: 
         for i, img in enumerate(pred): 
             output_file_name = '{0}_{1}_iter{2}{3}'.format(img_id, output_type, i, '.png')
             cv2.imwrite(os.path.join(to_dir, output_file_name), img)
-    else: # instances, unknown_mask, fg_mask
+    else: 
         output_file_name = '{0}_{1}{2}'.format(img_id, output_type, '.png')
         cv2.imwrite(os.path.join(to_dir, output_file_name), pred)
+
+
+def setup_output(*args):
+    for path in args:
+        if not os.path.exists(path):
+            os.mkdir(path)
 
 
 if __name__ == '__main__':
