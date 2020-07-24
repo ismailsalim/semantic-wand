@@ -6,8 +6,11 @@ class Controller:
         self.filename = None
         self.img = None
         self.model_results = None
-        self.matte = None
         self.trimap = None
+        self.fg = None
+        self.alpha = None
+        self.matte = None
+
 
         self.model = model
         self.update_canvas_cb = update_canvas_cb
@@ -22,8 +25,10 @@ class Controller:
         # annotations is PIL.Image.Image
         annotations = self.preprocess_annotations(annotations)
         self.model_results = self.model(self.img, annotations)
-        self.matte = self.model_results['mattes'][-1] # get final matte
         self.trimap = self.model_results['trimaps'][-1] # get final trimap
+        self.fg = self.model_results['foregrounds'][-1] # get final fg
+        self.alpha = self.model_results['alphas'][-1] # get final alpha
+        self.matte = self.model_results['mattes'][-1] # get final matte
         self.update_canvas_cb(self.matte, with_matte=True)
 
 

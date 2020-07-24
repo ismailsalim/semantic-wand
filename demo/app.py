@@ -14,14 +14,16 @@ from PIL import Image
 import numpy as np
 
 class App(tk.Frame):
-    def __init__(self, root, pipeline):
+    def __init__(self, root, pipeline, max_img_dim=800):
         super().__init__(root)
         self.root = root
         self.root.title('INTERACTIVE DEMO')
         self.root.geometry("1200x1000")
-        self.root.resizable(width=False, height=False)
+        self.root.resizable(width=True, height=True)
 
         self.controller = Controller(pipeline, self.update_canvas)
+
+        self.max_img_dim = max_img_dim
 
         self.add_menu()
         self.add_canvas()
@@ -35,12 +37,27 @@ class App(tk.Frame):
         self.menu.pack(side=tk.TOP, fill='x')
         self.load_button = tk.Button(self.menu, text='Load', command=self.load_img)
         self.load_button.pack(side=tk.LEFT)
-        self.save_button = tk.Button(self.menu, text='Save Matte', 
-                                    command=lambda: self.save(self.controller.matte, "matte"))
-        self.save_button.pack(side=tk.LEFT)
-        self.save_button = tk.Button(self.menu, text='Save Trimap', 
-                                    command=lambda: self.save(self.controller.trimap, "trimap"))
-        self.save_button.pack(side=tk.LEFT)
+
+        self.save_scribbles = tk.Button(self.menu, text='Save Scribbles', 
+                                    command=lambda: self.save(np.array(self.img_on_canvas.annotations)))
+        self.save_scribbles.pack(side=tk.LEFT)
+
+        self.save_trimap = tk.Button(self.menu, text='Save Trimap', 
+                                    command=lambda: self.save(self.controller.trimap))
+        self.save_trimap.pack(side=tk.LEFT)
+
+        self.save_fg = tk.Button(self.menu, text='Save Foreground', 
+                                    command=lambda: self.save(self.controller.fg))
+        self.save_fg.pack(side=tk.LEFT)
+
+        self.save_alpha = tk.Button(self.menu, text='Save Alpha', 
+                                    command=lambda: self.save(self.controller.alpha))
+        self.save_alpha.pack(side=tk.LEFT)
+
+        self.save_matte = tk.Button(self.menu, text='Save Extraction', 
+                                    command=lambda: self.save(self.controller.matte))
+        self.save_matte.pack(side=tk.LEFT)
+
         self.quit_button = tk.Button(self.menu, text='Quit', command=self.root.quit)
         self.quit_button.pack(side=tk.LEFT)
 
@@ -91,11 +108,12 @@ class App(tk.Frame):
         img = cv2.imread(filename.name)
         self.controller.filename, _ = os.path.splitext(os.path.basename(filename.name))
         
-        # resize image to the fixed canvas size 
-        max_img_dim = min(self.canvas.winfo_width(), self.canvas.winfo_height())
-        rescaled_img = self.rescale_img(img, max_img_dim)
+        # resize image to the fixed canvas size
+        h, w = img.shape[:2]
+        if h > self.max_img_dim or w > self.max_img_dim: 
+            img = self.rescale_img(img, self.max_img_dim)
         
-        self.controller.set_img(rescaled_img)
+        self.controller.set_img(img)
     
 
     def rescale_img(self, img, max_img_dim):
@@ -111,13 +129,11 @@ class App(tk.Frame):
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
 
-    def save(self, img, img_type):
+    def save(self, img):
         self.menu.focus_set()
         if img is not None:
-            filename = filedialog.asksaveasfilename(parent=self.root, 
-                                                initialfile='{}_{}'.format(self.controller.filename, img_type),
-                                                filetypes = [('PNG image', '*.png')],
-                                                title = 'Save mask as...')
+            filename = filedialog.asksaveasfilename(parent=self.root, initialfile=self.controller.filename,
+                                                filetypes = [('PNG image', '*.png')], title = 'Save as...')
             cv2.imwrite(filename, img)
 
 
