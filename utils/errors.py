@@ -3,7 +3,7 @@
 #
 # The author of the original source highlights:
 # Output of `compute_gradient_loss` is sightly different from the MATLAB version provided by Adobe (less than 0.1%)
-# Output of `compute_connectivity_error` is smaller than the MATLAB version (~5%, maybe MATLAB has a different algorithm)
+# Output of `compute_connectivity_error` is smaller than the MATLAB version (~5%)
 #
 # Therefore direct comparisons with the benchmarks found on www.alphamatting.com should not be published. 
 
