@@ -1,18 +1,21 @@
 
-"""
-This script adapts https://github.com/Yaoyi-Li/GCA-Matting/blob/master/utils/evaluate.py
+# This script adapts https://github.com/Yaoyi-Li/GCA-Matting/blob/master/utils/evaluate.py
+#
+# The author of the original source highlights:
+# Output of `compute_gradient_loss` is sightly different from the MATLAB version provided by Adobe (less than 0.1%)
+# Output of `compute_connectivity_error` is smaller than the MATLAB version (~5%, maybe MATLAB has a different algorithm)
+#
+# Therefore direct comparisons with the benchmarks found on www.alphamatting.com should not be published. 
 
-The author of the original source highlights:
-Output of `compute_gradient_loss` is sightly different from the MATLAB version provided by Adobe (less than 0.1%)
-Output of `compute_connectivity_error` is smaller than the MATLAB version (~5%, maybe MATLAB has a different algorithm)
-
-Therefore direct comparisons with the benchmarks found on www.alphamatting.com should not be published. 
-"""
 
 import scipy.ndimage
 import numpy as np
 from skimage.measure import label
 import scipy.ndimage.morphology
+
+
+def average(x):
+    return sum(x)/len(x)
 
 
 def gauss(x, sigma):
@@ -93,7 +96,7 @@ def compute_connectivity_error(pred, target, step):
 def compute_mse_error(pred, target):
     error_map = (pred - target) / 255.
     error = np.sum(error_map ** 2)
-    return error / 1000.
+    return error 
 
 
 def compute_sad_error(pred, target):
