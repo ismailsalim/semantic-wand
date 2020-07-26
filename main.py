@@ -14,64 +14,18 @@ import cv2
 import numpy as np
 
 def main():
-    parser = argparse.ArgumentParser()
-
-    usage = parser.add_mutually_exclusive_group()
-    usage.add_argument('-interactive', action='store_true', help='To run interactive demo')
-    usage.add_argument('-intermediate', action='store_true', 
-                        help='One image and scribbles with complete intermediate results')
-    usage.add_argument('-multiple', action='store_true',
-                        help='Folder of images and scribbles with simple results')
-
-    # USE CASE 1: One image with complete intermediate and final results 
-    parser.add_argument('--image', help='Path to a specific image to be processed')
-    parser.add_argument('--scribbles', help="Paths to a specific scribbles image")
-    parser.add_argument('--output', help="Path to folder where all output will be saved")
-
-    # USE CASE 2: Folder of images and scribbles with only final results
-    parser.add_argument('--images_dir', help='Path to folder of images that will be processed')
-    parser.add_argument('--scribbles_dir', help='Path to folder of scribbles that will be used with images')
-    parser.add_argument('--fgs_dir', help='Path to folder where alpha output will be saved')
-    parser.add_argument('--alphas_dir', help='Path to folder where fg output will be saved')
-    parser.add_argument('--mattes_dir', help='Path to folder where matte output will be saved')
-
-    # for pipeline specification
-    parser.add_argument('--max_img_dim', type=int, default=800, 
-                        help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
-    parser.add_argument('--feedback_thresh', type=int, default=0.01, 
-                         help='Min proportional change in trimap\'s def area to pass back into refinement stage')
+    args = parse_args()
     
-    # for masking stage specification
-    parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
-                        help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
-    parser.add_argument('--instance_thresh', type=float, default=0.05, 
-                        help='Mask R-CNN score threshold for instance recognition')
-   
-    # for trimap stage specification
-    parser.add_argument('--def_fg_thresh', type=float, default=0.99,
-                        help='Threshold above which mask pixels labelled as def fg for trimap network training')
-    parser.add_argument('--unknown_thresh', type=float, default=0.1,
-                        help='Threshold below which mask pixels labelled as def bg for trimap network training')
-    parser.add_argument('--lr', type=float, default=0.001, 
-                        help='Learning rate during training of trimap network')
-    parser.add_argument('--batch_size', type=int, default=12000, 
-                        help='Batch size used for training of trimap network')    
-    parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
-                        help='Probability below which trimap network inference is classified as bg')
-    parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
-                        help='Probability above which trimap network inference is classified as fg')
-
-    # for refinement stage specification
-    parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
-                        help='Path to pre-trained matting model')
-
-    args = parser.parse_args()
-    
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
+    # setup logging 
     pipe_logger = setup_logger("pipeline", "logs/pipeline.log")
-    pipe_logger.info("\n\n INITIALISING PIPELINE \n")
 
+    if args.logs:
+        if not os.path.exists("logs"):
+            os.mkdir("logs")
+    else:
+        pipe_logger.disabled = True
+
+    pipe_logger.info("\n\n INITIALISING PIPELINE \n")
     masking_stage = MaskingStage(args.mask_config, args.instance_thresh)
     trimap_stage = TrimapStage(args.def_fg_thresh, args.unknown_thresh, args.lr, args.batch_size,
                                 args.unknown_lower_bound, args.unknown_upper_bound)  
@@ -121,6 +75,64 @@ def main():
 
         img_id = os.path.splitext(os.path.basename(args.image))[0]   
         save_all_results(results, img_id, args.output)
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    usage = parser.add_mutually_exclusive_group()
+    usage.add_argument('-interactive', action='store_true', help='To run interactive demo')
+    usage.add_argument('-intermediate', action='store_true', 
+                        help='One image and scribbles with complete intermediate results')
+    usage.add_argument('-multiple', action='store_true',
+                        help='Folder of images and scribbles with simple results')
+
+    # set up logging
+    parser.add_argument('--logs', action='store_true', help='To enable logging')
+
+    # USE CASE 1: One image with complete intermediate and final results 
+    parser.add_argument('--image', help='Path to a specific image to be processed')
+    parser.add_argument('--scribbles', help="Paths to a specific scribbles image")
+    parser.add_argument('--output', help="Path to folder where all output will be saved")
+
+    # USE CASE 2: Folder of images and scribbles with only final results
+    parser.add_argument('--images_dir', help='Path to folder of images that will be processed')
+    parser.add_argument('--scribbles_dir', help='Path to folder of scribbles that will be used with images')
+    parser.add_argument('--fgs_dir', help='Path to folder where alpha output will be saved')
+    parser.add_argument('--alphas_dir', help='Path to folder where fg output will be saved')
+    parser.add_argument('--mattes_dir', help='Path to folder where matte output will be saved')
+
+    # for pipeline specification
+    parser.add_argument('--max_img_dim', type=int, default=800, 
+                        help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
+    parser.add_argument('--feedback_thresh', type=int, default=0.01, 
+                         help='Min proportional change in trimap\'s def area to pass back into refinement stage')
+
+    # for masking stage specification
+    parser.add_argument('--mask_config', default='Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml',
+                        help='YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)')
+    parser.add_argument('--instance_thresh', type=float, default=0.05, 
+                        help='Mask R-CNN score threshold for instance recognition')
+
+    # for trimap stage specification
+    parser.add_argument('--def_fg_thresh', type=float, default=0.99,
+                        help='Threshold above which mask pixels labelled as def fg for trimap network training')
+    parser.add_argument('--unknown_thresh', type=float, default=0.1,
+                        help='Threshold below which mask pixels labelled as def bg for trimap network training')
+    parser.add_argument('--lr', type=float, default=0.001, 
+                        help='Learning rate during training of trimap network')
+    parser.add_argument('--batch_size', type=int, default=12000, 
+                        help='Batch size used for training of trimap network')    
+    parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
+                        help='Probability below which trimap network inference is classified as bg')
+    parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
+                        help='Probability above which trimap network inference is classified as fg')
+
+    # for refinement stage specification
+    parser.add_argument('--matting_weights', default='./matting_network/FBA.pth', 
+                        help='Path to pre-trained matting model')
+
+    args = parser.parse_args()
+    return args
 
 
 def pre_process(img_path, scribbles_path):
