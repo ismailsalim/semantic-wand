@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict
 import logging
+import time
 
 import cv2
 import numpy as np
@@ -58,13 +59,13 @@ class Pipeline:
 
         subject, bounding_box = self.to_masking_stage(img, annotated_img)
 
-        trimap = self.to_trimap_stage(subject, img, bounding_box, annotated_img)
+        trimap, train_time = self.to_trimap_stage(subject, img, bounding_box, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
         
-        self.to_refinement_loop(trimap, alpha, img)
+        # self.to_refinement_loop(trimap, alpha, img)
 
-        return self.results
+        return self.results, train_time
 
 
     def to_masking_stage(self, img, annotated_img=None):
@@ -78,7 +79,7 @@ class Pipeline:
 
 
     def to_trimap_stage(self, subject, img, bounding_box, annotated_img=None):
-        heatmap, trimap, fg_mask, unknown_mask = self.trimap_stage.process_subject(subject, 
+        heatmap, trimap, fg_mask, unknown_mask, train_time = self.trimap_stage.process_subject(subject, 
                                                                                 img,                 
                                                                                 bounding_box.astype(int),
                                                                                 annotated_img)
@@ -89,7 +90,7 @@ class Pipeline:
         self.results['unknown_mask'] = unknown_mask*255
         self.results['trimaps'].append(trimap*255)
         
-        return trimap
+        return trimap, train_time
 
 
     def to_refinement_stage(self, trimap, img):       

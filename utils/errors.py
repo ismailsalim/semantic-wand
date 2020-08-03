@@ -57,6 +57,7 @@ def compute_gradient_error(pred, target):
     target_amp = np.sqrt(target_x ** 2 + target_y ** 2)
 
     error_map = (pred_amp - target_amp) ** 2
+
     error = np.sum(error_map)
     return error / 1000.
 
@@ -93,13 +94,25 @@ def compute_connectivity_error(pred, target, step):
     return error / 1000.
 
 
-def compute_mse_error(pred, target):
+def compute_mse_error(pred, target, weights=None):
     error_map = (pred - target) / 255.
-    error = np.sum(error_map ** 2)
+
+    if weights is not None: 
+        weights = weights / 255.
+        error = np.sum(weights * np.mean(error_map, axis=2) ** 2) # bgr image
+    else:
+        error = np.sum(error_map ** 2)
+
     return error 
 
 
-def compute_sad_error(pred, target):
+def compute_sad_error(pred, target, weights=None):
     error_map = np.abs(pred - target) / 255.
-    error = np.sum(error_map)
+
+    if weights is not None:    
+        weights = weights / 255.
+        error = np.sum(weights * np.mean(error_map, axis=2)) # bgr image
+    else:
+        error = np.sum(error_map)
+
     return error / 1000.

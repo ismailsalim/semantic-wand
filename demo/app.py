@@ -14,11 +14,11 @@ from PIL import Image
 import numpy as np
 
 class App(tk.Frame):
-    def __init__(self, root, pipeline, max_img_dim=800):
+    def __init__(self, root, pipeline, max_img_dim=2000):
         super().__init__(root)
         self.root = root
         self.root.title('INTERACTIVE DEMO')
-        self.root.geometry("1200x1000")
+        self.root.geometry("2500x2500")
         self.root.resizable(width=True, height=True)
 
         self.controller = Controller(pipeline, self.update_canvas)
@@ -42,6 +42,14 @@ class App(tk.Frame):
                                     command=lambda: self.save(np.array(self.img_on_canvas.annotations)))
         self.save_scribbles.pack(side=tk.LEFT)
 
+        self.save_instances = tk.Button(self.menu, text='Save Instances', 
+                                    command=lambda: self.save(self.controller.instances))
+        self.save_instances.pack(side=tk.LEFT)
+
+        self.save_heatmap = tk.Button(self.menu, text='Save Heatmap', 
+                                    command=lambda: self.save(self.controller.heatmap))
+        self.save_heatmap.pack(side=tk.LEFT)
+
         self.save_trimap = tk.Button(self.menu, text='Save Trimap', 
                                     command=lambda: self.save(self.controller.trimap))
         self.save_trimap.pack(side=tk.LEFT)
@@ -63,12 +71,12 @@ class App(tk.Frame):
 
 
     def add_canvas(self):
-        self.canvas_frame = tk.LabelFrame(self.root, width=800, height=800)
+        self.canvas_frame = tk.LabelFrame(self.root, width=self.max_img_dim, height=self.max_img_dim)
         self.canvas_frame.rowconfigure(0, weight=1)
         self.canvas_frame.columnconfigure(0, weight=1)
 
         self.canvas = tk.Canvas(self.canvas_frame, highlightthickness=0, 
-                                width=800, height=800)
+                                width=self.max_img_dim, height=self.max_img_dim)
         self.canvas.grid(row=0, column=0, sticky='NSW', padx=5, pady=5)
 
         self.img_on_canvas = None

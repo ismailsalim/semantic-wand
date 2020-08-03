@@ -34,8 +34,8 @@ class TrimapStage:
         self.unknown_lower_bound = unknown_lower_bound
         self.unknown_upper_bound = unknown_upper_bound
 
-        pipe_logger.info("lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
-            lr, batch_size, unknown_lower_bound, unknown_upper_bound
+        pipe_logger.info("def_fg_thresh: {}, unknown_thresh: {}, lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
+            def_fg_threshold, unknown_threshold, lr, batch_size, unknown_lower_bound, unknown_upper_bound
         ))
 
 
@@ -46,17 +46,26 @@ class TrimapStage:
         fg_mask = heatmap > self.def_fg_threshold
         unknown_mask = heatmap > self.unknown_threshold
 
+        cv2.imwrite("data/inter/output/fg_mask.png", fg_mask.astype(int)*255)
+        cv2.imwrite("data/inter/output/unknown_mask.png", unknown_mask.astype(int)*255)
+
         if annotated_img is not None:
             fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
             unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
 
         boundary_mask = self._expand_bounds(bounding_box, img)
 
+        cv2.imwrite("data/inter/output/boudary.png", boundary_mask.astype(int)*255)
+
         train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
         
         self.trimap_generator = build_model()
         
+        start = time.time()
         self._train(self.trimap_generator, train_data)
+        end = time.time()
+        train_time = end-start
+        pipe_logger.info("Trimap convergence took {} seconds".format(train_time))
         
         unknown_preds = self._infer(self.trimap_generator, infer_data)
         
@@ -68,7 +77,7 @@ class TrimapStage:
             trimap[coord[0], coord[1]] = pred
 
         pipe_logger.info("Trimap generated!")
-        return heatmap, trimap, fg_mask, unknown_mask
+        return heatmap, trimap, fg_mask, unknown_mask, train_time
 
 
     def process_alpha(self, alpha, trimap, level):
@@ -170,9 +179,6 @@ class TrimapStage:
             else:
                 previous_loss = epoch_loss
                 epoch  += 1
-
-        pipe_logger.info("Training completed!")
-
 
 
     def _infer(self, model, infer_data):

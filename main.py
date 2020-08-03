@@ -9,6 +9,8 @@ from utils.logger import setup_logger
 
 import argparse
 import os
+import time
+
 import tkinter as tk
 import cv2
 import numpy as np
@@ -18,7 +20,9 @@ def main():
     
     pipe_logger = setup_logging(args)
 
-    pipe_logger.info("\n\n INITIALISING PIPELINE \n")
+    pipe_logger.info("\n\n INITIALISING PIPELINE...")
+    if args.ref is not None:
+        pipe_logger.info(args.ref)
 
     masking_stage = MaskingStage(args.mask_config, args.instance_thresh)
     
@@ -36,10 +40,11 @@ def main():
         app.mainloop()   
 
     if args.eval:
-        process_images_simple(args, pipeline)
+        avg_trimap_time = process_images_eval(args, pipeline)
+        pipe_logger.info("Average trimap time takes: {}".format(avg_trimap_time))
 
     if args.intermediate:
-        process_image_complete(args, pipeline)
+        process_image_intermediate(args, pipeline)
 
 
 def parse_args():
@@ -54,6 +59,7 @@ def parse_args():
 
     # logging set up
     parser.add_argument('--no_logs', action='store_true', help='To disable logging')
+    parser.add_argument('--ref', type=str, help='Reference for pipeline inference')
 
     # USE CASE 1: One image with complete intermediate and final results 
     parser.add_argument('--image', type=str, help='Path to a specific image to be processed')
@@ -63,12 +69,13 @@ def parse_args():
     # USE CASE 2: Folder of images and scribbles with only final results
     parser.add_argument('--images_dir', type=str, help='Path to folder of images that will be processed')
     parser.add_argument('--scribbles_dir', type=str, help='Path to folder of scribbles that will be used with images')
+    parser.add_argument('--trimaps_dir', type=str, help='Path to folder where final trimap will be saved')
     parser.add_argument('--fgs_dir', type=str, help='Path to folder where alpha output will be saved')
     parser.add_argument('--alphas_dir', type=str, help='Path to folder where fg output will be saved')
     parser.add_argument('--mattes_dir', type=str, help='Path to folder where matte output will be saved')
 
     # for pipeline specification
-    parser.add_argument('--max_img_dim', type=int, default=800, 
+    parser.add_argument('--max_img_dim', type=int, default=2000, 
                         help='Number of pixels that the image\'s maximum dimension is scaled to for processing')
     parser.add_argument('--feedback_thresh', type=int, default=0.01, 
                          help='Min proportional change in trimap\'s def area to pass back into refinement stage')
@@ -80,9 +87,9 @@ def parse_args():
                         help='Mask R-CNN score threshold for instance recognition')
 
     # for trimap stage specification
-    parser.add_argument('--def_fg_thresh', type=float, default=0.99,
+    parser.add_argument('--def_fg_thresh', type=float, default=0.8,
                         help='Threshold above which mask pixels labelled as def fg for trimap network training')
-    parser.add_argument('--unknown_thresh', type=float, default=0.1,
+    parser.add_argument('--unknown_thresh', type=float, default=0.2,
                         help='Threshold below which mask pixels labelled as def bg for trimap network training')
     parser.add_argument('--lr', type=float, default=0.001, 
                         help='Learning rate during training of trimap network')
@@ -115,7 +122,7 @@ def setup_logging(args):
 def setup_output(*args):
     for path in args:
         if not os.path.exists(path):
-            os.mkdir(path)
+            os.makedirs(path)
 
 
 def pre_process(img_path, scribbles_path=None):
@@ -136,8 +143,9 @@ def pre_process(img_path, scribbles_path=None):
     return img
 
 
-def process_images_simple(args, pipeline):
-    assert None not in (args.images_dir, args.scribbles_dir, args.fgs_dir, args.alphas_dir, args.mattes_dir), (
+def process_images_eval(args, pipeline):
+    assert None not in (args.images_dir, args.scribbles_dir, 
+                        args.fgs_dir, args.alphas_dir, args.mattes_dir, args.trimaps_dir), (
         "Input and output directories must be specified with this usage!"
     )
 
@@ -147,22 +155,28 @@ def process_images_simple(args, pipeline):
     # assumes images and scribbles are identically named
     assert img_ids == scribble_ids, "Image and scribble folders must be same size!"
 
-    setup_output(args.fgs_dir, args.alphas_dir, args.mattes_dir)
+    setup_output(args.fgs_dir, args.alphas_dir, args.mattes_dir, args.trimaps_dir)
 
+    trimap_times = []  
     for img_file, scribbles_file in zip(img_ids, scribble_ids):
 
         img_path = os.path.join(args.images_dir, img_file)
         scribbles_path = os.path.join(args.scribbles_dir, scribbles_file)
 
-        img, scribbles = pre_process(img_path, scribbles_path) 
-        results = pipeline(img, scribbles)
+        img, scribbles = pre_process(img_path, scribbles_path)
+
+        results, trimap_time = pipeline(img, scribbles)
+        trimap_times.append(trimap_time)
 
         cv2.imwrite(os.path.join(args.fgs_dir, img_file), results['foregrounds'][-1])
         cv2.imwrite(os.path.join(args.alphas_dir, img_file), results['alphas'][-1])
         cv2.imwrite(os.path.join(args.mattes_dir, img_file), results['mattes'][-1])
+        cv2.imwrite(os.path.join(args.trimaps_dir, img_file), results['trimaps'][-1])
+    
+    return sum(trimap_times)/len(trimap_times)
 
 
-def process_image_complete(args, pipeline):
+def process_image_intermediate(args, pipeline):
     assert None not in (args.image, args.output), (
         "Must specify at least one image and an output folder!")
 
@@ -171,7 +185,7 @@ def process_image_complete(args, pipeline):
         results = pipeline(img, scribbles)
     else: 
         img = pre_process(args.image)
-        results = pipeline(img)
+        results, _ = pipeline(img)
 
     img_id = os.path.splitext(os.path.basename(args.image))[0]   
     save_all_results(results, img_id, args.output)
