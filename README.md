@@ -1,9 +1,9 @@
 # Semantic Wand: A Learning-based Tool for Object Extraction in Natural Images
 
 ## Setting up an environment
-The pipeline is built using Python 3.6 and requires:
-- PyTorch 1.4.0+ (Author uses torch==1.5.0+cu101 and torchvision==0.6.0+cu101)
-- Detectron2 (Author uses detectron2==0.1.3+cu101)
+The pipeline is implemented using Python 3.6 and requires:
+- PyTorch (tested with 1.5.0+cu101 and torchvision==0.6.0+cu101)
+- Detectron2 (tested with detectron2==0.1.3+cu101)
 - pycocotools
 - OpenCV
 
@@ -15,7 +15,7 @@ You can install the correct version of Detectron2 (with cuda) according to the i
 
 ## Use
 ### 1. Interactive app
-The app is built with Python's Tk interface. Hopefully, usage is self-explanatory from the interface.
+The app is built with Python's Tk interface. Hopefully, usage is self-explanatory.
 
 To start the app, run from the command line:
 ```bash
@@ -24,17 +24,17 @@ python main.py -interactive
 
 ### 2. Complete intermediate pipeline results
 ```bash
-# This runs the specified image with the specified scribble and saves all
-# the intermediate and final results that generated throughout the 
-# pipeline such as the various trimap iterations.
+# This runs the specified image with the specified scribble and saves all the 
+# intermediate and final results that generated throughout the pipeline such as 
+# the various trimap iterations.
 python main.py -intermediate --image img.png --scribbles scribble.png --output output/
 ```
 
 ### 3. Multiple image processing (for evaluation)
 ```bash
-# This runs every image in the specified input directory and their
-# corresponding scribble through the pipeline and outputs fg, alpha, 
-# and matte predictions to the specified output folders. 
+# This runs every image in the specified input directory and their corresponding 
+# scribble through the pipeline and outputs fg, alpha, and matte predictions to 
+# the specified output folders. 
 # - Assumes that scribbles and images are named identically!
 # - Useful to produce the output to run `eval.py` for accuracy statistics.
 python main.py -eval --images_folder imgs/ --scribles_folder scribbles/ --output output/
@@ -42,15 +42,15 @@ python main.py -eval --images_folder imgs/ --scribles_folder scribbles/ --output
 
 ### Optional arguments
 ```bash
-# This changes the maximum dimension of the image fed into the 
-# pipeline to 1000 pixels large
-# To maintain the original input image size, make this value 
-# bigger than the largest dimension of the input image.
+# This changes the maximum dimension of the image fed into the pipeline to 1000 
+# pixels large.
+# To maintain the original input image size, make this value bigger than the largest 
+# dimension of the input image.
 python main.py  ... --max_img_dim 1000
 
-# This changes the threshold applied for proceeding to the next 
-# iteration of the refinement loop i.e the minimum proportional 
-# change in the trimap (a smaller threshold tends towards more iterations)
+# This changes the threshold applied for proceeding to the next iteration of the 
+# refinement loop i.e the minimum proportional change in the trimap (a smaller 
+# threshold tends towards more iterations).
 python main.py ... --threshold 0.001
 
 # This uses a non-default model from Detectron2. Format follows directory structure 
@@ -58,15 +58,16 @@ python main.py ... --threshold 0.001
 # https://github.com/facebookresearch/detectron2/tree/master/configs
 python main.py ... --mask_config COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
-# This changes the thresholds applied to the probability mask (heatmap) to generate the definite foreground/background regions of the trimap
+# This changes the thresholds applied to the probability mask (heatmap) to generate 
+# the definite foreground/background regions of the trimap
 python main.py ... --def_fg_thresh 0.2 --def_bg_thresh 0.8
 
-# This simply uses probability mask thresholding to generate the trimap 
-# and does not apply the trimap generator network (faster but generally less accurate)
+# This simply uses probability mask thresholding to generate the trimap and does 
+# not apply the trimap generator network (faster but generally less accurate)
 python main.py ... --no_optimisation
 
-# This changes the thresholds applied to the sigmoid output to 
-# classify pixels according to the trimap's three classes
+# This changes the thresholds applied to the sigmoid output to classify pixels 
+# according to the trimap's three classes
 python main.py ... --unknown_lower_bound 0.4 --unknown_upper_bound 0.6
 ```
 
