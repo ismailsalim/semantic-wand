@@ -65,16 +65,15 @@ class MaskingStage:
                 pipe_logger.error("Can't identify a subject from annotations!")
                 raise ValueError("Can't identify a subject from annotations!")
 
-        # (refactor) allow this in demo (w/ select subject button)    
         else: # find instance with largest predicted box area in the image
             idx = instances.get('pred_boxes').area().argmax().item()
             
         subject = instances[idx]
         
-        # (review) current used for alpha refinement loop
         pred_box = subject.get('pred_boxes').tensor.cpu().numpy()[0]
 
         pipe_logger.info("Subject identified from annotations!")
+        
         return subject, pred_box
 
 

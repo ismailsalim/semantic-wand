@@ -26,13 +26,16 @@ pipe_logger = logging.getLogger("pipeline")
 class TrimapStage: 
     def __init__(self, def_fg_threshold=0.99, unknown_threshold=0.1,
                         lr=0.001, batch_size=12000,
-                        unknown_lower_bound=0.01, unknown_upper_bound=0.99):
+                        unknown_lower_bound=0.01, unknown_upper_bound=0.99, 
+                        with_optimisation=True):
+        
         self.def_fg_threshold = def_fg_threshold
         self.unknown_threshold = unknown_threshold
         self.lr = lr
         self.batch_size = batch_size
         self.unknown_lower_bound = unknown_lower_bound
         self.unknown_upper_bound = unknown_upper_bound
+        self.with_optimisation = with_optimisation
 
         pipe_logger.info("def_fg_thresh: {}, unknown_thresh: {}, lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
             def_fg_threshold, unknown_threshold, lr, batch_size, unknown_lower_bound, unknown_upper_bound
@@ -46,56 +49,46 @@ class TrimapStage:
         fg_mask = heatmap > self.def_fg_threshold
         unknown_mask = heatmap > self.unknown_threshold
 
-        # cv2.imwrite("examples/pineapple/output2/fg_mask.png", fg_mask.astype(int)*255)
-        # cv2.imwrite("examples/pineapple/output2/unknown_mask.png", unknown_mask.astype(int)*255)
-
         if annotated_img is not None:
             fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
             unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
 
-        boundary_mask = self._expand_bounds(bounding_box, img)
+        if self.with_optimisation:
+            trimap = self._optimise_trimap(bounding_box, img, heatmap, fg_mask, unknown_mask)
 
-        # cv2.imwrite("data/inter/output/boudary.png", boundary_mask.astype(int)*255)
-
-        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
-        
-        self.trimap_generator = build_model()
-        
-        start = time.time()
-        self._train(self.trimap_generator, train_data)
-        end = time.time()
-        train_time = end-start
-        pipe_logger.info("Trimap convergence took {} seconds".format(train_time))
-        
-        unknown_preds = self._infer(self.trimap_generator, infer_data)
-        
-        trimap = np.zeros(img.shape[:2], dtype=float) 
-        trimap[fg_mask] = 1
-
-        coords = np.argwhere(unknown_mask != fg_mask)
-        for coord, pred in zip(coords, unknown_preds):
-            trimap[coord[0], coord[1]] = pred
+        else:
+            trimap = np.zeros(img.shape[:2], dtype=float)
+            trimap[fg_mask] = 1
+            trimap[np.logical_and(~fg_mask, unknown_mask)] = 0.5
 
         pipe_logger.info("Trimap generated!")
-        return heatmap, trimap, fg_mask, unknown_mask, train_time
-
-        # fg_mask = self._resize_subject(subject, 0.99)
-        # unknown_mask = self._resize_subject(subject, 0.05)
-
-        # start = time.time()
-
-        # trimap = np.zeros(img.shape[:2], dtype=float)
-        # trimap[fg_mask] = 1
-        # trimap[np.logical_and(~fg_mask, unknown_mask)] = 0.5
-
-        # end = time.time()
-
-        # return heatmap, trimap, fg_mask, unknown_mask, end-start
+        return heatmap, trimap, fg_mask, unknown_mask
 
 
     def process_alpha(self, alpha, trimap, level):
         trimap[alpha==0.0] = 0.0
         trimap[alpha==1.0] = 1.0
+        return trimap
+
+
+    def _optimise_trimap(self, bounding_box, img, heatmap, fg_mask, unknown_mask):
+        boundary_mask = self._expand_bounds(bounding_box, img)
+
+        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
+
+        self.trimap_generator = build_model()
+
+        self._train(self.trimap_generator, train_data)
+
+        unknown_preds = self._infer(self.trimap_generator, infer_data)
+
+        trimap = np.zeros(img.shape[:2], dtype=float) 
+        trimap[fg_mask] = 1.0
+
+        coords = np.argwhere(unknown_mask != fg_mask)
+        for coord, pred in zip(coords, unknown_preds):
+            trimap[coord[0], coord[1]] = pred
+
         return trimap
 
 
@@ -230,7 +223,7 @@ class TrimapStage:
 
     def _resize_subject(self, subject, thresh=-1):
         # scale 28x28 soft mask output up to full image resolution
-        binary_mask = retry_if_cuda_oom(self.paste_masks_in_image)(
+        binary_mask = retry_if_cuda_oom(self._paste_masks_in_image)(
             subject.pred_masks[:, 0, :, :],  # N, 1, M, M
             subject.pred_boxes,
             subject.image_size,
@@ -239,7 +232,7 @@ class TrimapStage:
         return binary_mask.cpu().numpy().squeeze()
 
 
-    def paste_masks_in_image(self, masks, boxes, image_shape, threshold):
+    def _paste_masks_in_image(self, masks, boxes, image_shape, threshold):
         assert masks.shape[-1] == masks.shape[-2], "Only square mask predictions are supported"
         N = len(masks)
         if N == 0:
