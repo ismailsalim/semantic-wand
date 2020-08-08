@@ -56,7 +56,7 @@ def parse_args():
                         help="To process a folder of images and scribbles with selected final results required for eval")
 
     # logging set up
-    parser.add_argument("--no_logs", action="store_true", help="To disable logging")
+    parser.add_argument("--logging", action="store_true", help="To enable logging")
 
     # USE CASE 2: One image with complete intermediate and final results 
     parser.add_argument("--image", type=str, help="Path to a specific image to be processed")
@@ -198,11 +198,12 @@ def preprocess_scribbles(scribbles, img):
 
 def setup_logging(args):
     pipe_logger = setup_logger("pipeline", "logs/pipeline.log")
-    
-    if args.no_logs:
-        pipe_logger.disabled = True
-    elif not os.path.exists("logs"):
-        os.mkdir("logs")
+    pipe_logger.disabled = True
+
+    if args.logging:
+        pipe_logger.disabled = False
+        if not os.path.exists("logs"):
+            os.mkdir("logs")
 
     return pipe_logger
 
