@@ -72,15 +72,14 @@ class MaskingStage:
         subject = instances[idx]
         pipe_logger.info("Subject identified from annotations!")
 
-        heatmap = self._process_soft_masks(subject, -1)
+        heatmap = self._process_soft_masks(subject, -1).squeeze()
 
         bounding_box = subject.get('pred_boxes').tensor.cpu().numpy()[0]
 
         return heatmap, bounding_box
 
 
-    def _get_most_annotated(self, instances, annotated_img):
-        masks = instances.cpu().numpy() # boolean masks
+    def _get_most_annotated(self, masks, annotated_img):
         matching = [np.sum(np.logical_and(m==True, annotated_img==1)) for m in masks] 
         
         if all(sum == 0 for sum in matching):
@@ -123,7 +122,8 @@ class MaskingStage:
             subject.image_size,
             threshold = threshold
         )
-        return binary_mask.cpu().numpy().squeeze()
+
+        return binary_mask.cpu().numpy()
 
 
     def paste_masks_in_image(self, masks, boxes, image_shape, threshold):        

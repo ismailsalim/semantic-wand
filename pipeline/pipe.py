@@ -25,17 +25,17 @@ class Pipeline:
 
     def __call__(self, img, annotated_img=None):
         """
-        Performs end-to-end matting process.
+        Performs end-to-end object extraction process process
         Args:
-            img (numpy array): The image to be processed.
+            img (numpy array): The original image
             annotated_img (numpy array):
-                Annnotations made for specific object selection. Same shape as `img`. 
-                * Foreground pixels represented by 1.
-                * Background pixels represented by 0.
-                * Unannotated pixels represented by -1.
+                Annnotations made for specific object selection. Same shape as `img`
+                * Foreground pixels represented by 1
+                * Background pixels represented by 0
+                * Unannotated pixels represented by -1
         Returns:
             dict(list):
-                Intermediate and final image processing results.
+                Intermediate and final image processing results
                 * Initial instance segmentation
                 * Foreground/Background masks used for initial trimap
                 * Subsequent trimaps (from alpha feedback loop)
@@ -43,8 +43,6 @@ class Pipeline:
                 * Matte(s)
         """
         img, annotated_img = self.preprocess(annotated_img, img)
-
-        # subject, bounding_box = self.to_masking_stage(img, annotated_img)
 
         heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
 
@@ -59,11 +57,14 @@ class Pipeline:
 
     def preprocess(self, annotated_img, img):
         if annotated_img is not None:
-            assert len(annotated_img.shape) == 2, "Annotation image must be grayscale!"
-            assert img.shape[:2] == annotated_img.shape[:2], "Annotation image and input image must have same (h, w)!" 
+            assert len(annotated_img.shape) == 2,(
+                "Annotation image must be grayscale!")
+            assert img.shape[:2] == annotated_img.shape[:2], (
+                "Annotation image and input image must have same (h, w)!" )
 
             annots = np.array([-1, 0, 1])
-            assert not False in np.in1d(annotated_img, annots), "Anotated image must only contain [-1, 0, 1]"
+            assert not False in np.in1d(annotated_img, annots), (
+                "Anotated image must only contain [-1, 0, 1]")
 
         h, w = img.shape[:2]
         if h > self.max_img_dim or w > self.max_img_dim: 
@@ -75,6 +76,22 @@ class Pipeline:
 
 
     def to_masking_stage(self, img, annotated_img=None):
+        """
+        Performs instance detection and identification of the subject's 
+        probability mask (heatmap)
+        Args:
+            img (numpy array): The original image
+            annotated_img (numpy array):
+                Annnotations made for specific object selection. Same shape as `img`
+                * Foreground pixels represented by 1
+                * Background pixels represented by 0
+                * Unannotated pixels represented by -1
+        Returns:
+            (numpy array): Subject's probability mask 
+            (list): Subject's bounding box offset such that
+                    height = bounding_box[3] - bounding_box[1]
+                    width = bounding_box[2] - bounding_box[0])
+        """
         instances = self.masking_stage.get_instance_preds(img)
         self.results['instances'] = self.masking_stage.get_instances_vis(instances, img)
         
@@ -85,6 +102,27 @@ class Pipeline:
 
 
     def to_trimap_stage(self, heatmap, img, bounding_box, annotated_img=None):
+        """
+        Generates the trimap given a subject of interest's probability mask and 
+        bounding box offset.
+        Args:
+            heatmap (numpy array): The suject's instance probabilty mask.
+            img (numpy array): The original image.
+            bounding_box (list):
+                Subject's bounding box offset such that
+                height = bounding_box[3] - bounding_box[1]
+                width = bounding_box[2] - bounding_box[0])
+            annotated_img (numpy array)
+                Annnotations made for specific object selection. Same shape as `img`
+                * Foreground pixels represented by 1
+                * Background pixels represented by 0
+                * Unannotated pixels represented by -1
+        Returns:
+            (numpy array): Trimap
+                Definite background represented by 0
+                Definite foreground represented by 1
+                Unknown region represented by 0.5
+        """
         trimap, fg_mask, unknown_mask = self.trimap_stage.get_trimap(heatmap, img, 
                                                                         bounding_box.astype(int),
                                                                         annotated_img)
@@ -96,7 +134,20 @@ class Pipeline:
         return trimap
 
 
-    def to_refinement_stage(self, trimap, img):       
+    def to_refinement_stage(self, trimap, img):     
+        """
+        Performs alpha and foreground estimation given a trimap.
+        Args:
+            trimap (numpy array): 
+                Definite background represented by 0
+                Definite foreground represented by 1
+                Unknown region represented by 0.5
+            img (numpy array): The original image
+
+        Returns:
+            (numpy array): Alpha matte
+                Floating point values between 0 and 1
+        """  
         fg, alpha, matte = self.refinement_stage.process(trimap, img)
         self.results['foregrounds'].append(fg*255)
         self.results['alphas'].append(alpha*255)
@@ -106,6 +157,18 @@ class Pipeline:
 
 
     def to_refinement_loop(self, trimap, alpha, img):
+        """
+        Iteratively refines foreground and alpha estimation until the change
+        in the unknown region of trimap falls below a threshold.
+        Args:
+            trimap (numpy array): 
+                Definite background represented by 0
+                Definite foreground represented by 1
+                Unknown region represented by 0.5
+            alpha (numpy array): 
+                Floating point values between 0 and 1
+            img (numpy array): The original image
+        """  
         prev_def_area = np.sum(np.logical_or(trimap==1.0, trimap==0.0))
 
         trimap[alpha==0.0] = 0.0

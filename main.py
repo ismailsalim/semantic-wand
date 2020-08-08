@@ -114,34 +114,6 @@ def parse_args():
     return args
 
 
-def setup_logging(args):
-    pipe_logger = setup_logger("pipeline", "logs/pipeline.log")
-    
-    if args.no_logs:
-        pipe_logger.disabled = True
-    elif not os.path.exists("logs"):
-        os.mkdir("logs")
-
-    return pipe_logger
-
-
-def make_dirs(*args):
-    for path in args:
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-
-def preprocess_scribbles(scribbles, img):
-    assert img.shape[:2] == scribbles.shape[:2], (
-        "Image: {} and Scribbles: {} must be same shape!".format(img.shape[:2], scribbles.shape[:2]))
-
-    scribbles[scribbles == 128] = -1 # convert unnannotated pixels
-    scribbles[scribbles == 255] = 1 # convert fg scribbles
-    scribbles[scribbles == 0] = 0 # convert bg scribbles
-
-    return scribbles
-
-
 def process_images_eval(args, pipeline):
     img_files = sorted(os.listdir(args.images_folder))
         
@@ -212,6 +184,33 @@ def save_results_type(pred, img_id, output_type, output_folder):
         output_file_name = "{0}_{1}{2}".format(img_id, output_type, ".png")
         cv2.imwrite(os.path.join(output_folder, output_file_name), pred)
 
+
+def preprocess_scribbles(scribbles, img):
+    assert img.shape[:2] == scribbles.shape[:2], (
+        "Image: {} and Scribbles: {} must be same shape!".format(img.shape[:2], scribbles.shape[:2]))
+
+    scribbles[scribbles == 128] = -1 # convert unnannotated pixels
+    scribbles[scribbles == 255] = 1 # convert fg scribbles
+    scribbles[scribbles == 0] = 0 # convert bg scribbles
+
+    return scribbles
+
+
+def setup_logging(args):
+    pipe_logger = setup_logger("pipeline", "logs/pipeline.log")
+    
+    if args.no_logs:
+        pipe_logger.disabled = True
+    elif not os.path.exists("logs"):
+        os.mkdir("logs")
+
+    return pipe_logger
+
+
+def make_dirs(*args):
+    for path in args:
+        if not os.path.exists(path):
+            os.makedirs(path)
 
 if __name__ == "__main__":
     main()
