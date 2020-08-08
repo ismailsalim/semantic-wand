@@ -70,7 +70,7 @@ def parse_args():
     parser.add_argument("--output", type=str, help="Path to folder where all output will be saved")
 
     # for pipeline specification
-    parser.add_argument("--max_img_dim", type=int, default=2000, 
+    parser.add_argument("--max_img_dim", type=int, default=800, 
                         help="Number of pixels that the images maximum dimension is scaled to for processing")
     parser.add_argument("--feedback_thresh", type=int, default=0.01, 
                          help="Min proportional change in trimaps def area to pass back into refinement stage")

@@ -23,7 +23,6 @@ class CanvasImage:
             self.imwidth, self.imheight = img.size
 
         self.last_x, self.last_y = None, None
-        # self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
         self.annotations = np.ones((self.imheight, self.imwidth))*128
 
         self.show_img()  
@@ -36,9 +35,8 @@ class CanvasImage:
         imageid = self.canvas.create_image(0, 0,anchor='nw', image=imagetk)                                
 
         self.canvas.lower(imageid)  # set image into background
-        self.canvas.imagetk = imagetk  # extra reference for garbage collection
+        self.canvas.imagetk = imagetk 
 
-        # self.drawing = ImageDraw.Draw(self.annotations)
         self.canvas.bind('<1>', self.activate_paint)
 
 
@@ -49,12 +47,18 @@ class CanvasImage:
 
     def paint(self, e):
         x, y = e.x, e.y
-        if self.active_brush == "FG_BRUSH":
-            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=self.brush_size.get()*2, capstyle=tk.ROUND) 
-            self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 255, -1)
-        elif self.active_brush == "BG_BRUSH":
-            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='red', width=self.brush_size.get()*2, capstyle=tk.ROUND)
-            self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 0, -1)
+
+        if e.x < self.imwidth and e.y < self.imheight:
+            if self.active_brush == "FG_BRUSH":
+                self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), 
+                                                    fill='blue', 
+                                                    width=self.brush_size.get()*2, capstyle=tk.ROUND) 
+                self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 255, -1)
+            elif self.active_brush == "BG_BRUSH":
+                self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), 
+                                                    fill='red', 
+                                                    width=self.brush_size.get()*2, capstyle=tk.ROUND)
+                self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 0, -1)
 
         self.last_x, self.last_y = x, y
 

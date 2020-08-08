@@ -19,11 +19,10 @@ class Controller:
     def process_img(self, annotations):
         # annotations is PIL.Image.Image
         annotations = self.preprocess_annotations(annotations)
-        self.model_results, _ = self.model(self.img, annotations)
+        self.model_results = self.model(self.img, annotations)
         self.instances = self.model_results['instances']
         self.heatmap = self.model_results['heatmap']
         self.trimap = self.model_results['trimaps'][-1] # get final trimap
-        self.fg = self.model_results['foregrounds'][-1] # get final fg
         self.alpha = self.model_results['alphas'][-1] # get final alpha
         self.matte = self.model_results['mattes'][-1] # get final matte
         self.update_canvas_cb(self.matte, with_matte=True)
