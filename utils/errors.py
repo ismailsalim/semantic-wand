@@ -101,9 +101,10 @@ def compute_mse_error(pred, target, weights=None):
         weights = weights / 255.
         error = np.sum(weights * np.mean(error_map, axis=2) ** 2) # bgr image
     else:
-        error = np.sum(error_map ** 2)
-
-    return error 
+        error = np.sum(error_map ** 2) 
+    
+    h, w = pred.shape[0], pred.shape[1]
+    return error / (h * w)
 
 
 def compute_sad_error(pred, target, weights=None):

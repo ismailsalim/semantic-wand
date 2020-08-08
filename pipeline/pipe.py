@@ -63,7 +63,7 @@ class Pipeline:
 
         alpha = self.to_refinement_stage(trimap, img)
         
-        # self.to_refinement_loop(trimap, alpha, img)
+        self.to_refinement_loop(trimap, alpha, img)
 
         return self.results, train_time
 
@@ -83,7 +83,7 @@ class Pipeline:
                                                                                 img,                 
                                                                                 bounding_box.astype(int),
                                                                                 annotated_img)
-        
+  
         # (refactor) move this out of pipe
         self.results['heatmap'] = heatmap*255
         self.results['fg_mask'] = fg_mask*255

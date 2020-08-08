@@ -1,6 +1,8 @@
 from PIL import Image, ImageTk, ImageDraw
 import tkinter as tk
 import math
+import numpy as np
+import cv2
 
 class CanvasImage:
     def __init__(self, canvas_frame, canvas, brush_size):
@@ -21,7 +23,8 @@ class CanvasImage:
             self.imwidth, self.imheight = img.size
 
         self.last_x, self.last_y = None, None
-        self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
+        # self.annotations = Image.new('L', (self.imwidth, self.imheight), color=128)
+        self.annotations = np.ones((self.imheight, self.imwidth))*128
 
         self.show_img()  
 
@@ -35,7 +38,7 @@ class CanvasImage:
         self.canvas.lower(imageid)  # set image into background
         self.canvas.imagetk = imagetk  # extra reference for garbage collection
 
-        self.drawing = ImageDraw.Draw(self.annotations)
+        # self.drawing = ImageDraw.Draw(self.annotations)
         self.canvas.bind('<1>', self.activate_paint)
 
 
@@ -47,11 +50,11 @@ class CanvasImage:
     def paint(self, e):
         x, y = e.x, e.y
         if self.active_brush == "FG_BRUSH":
-            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=self.brush_size.get(), capstyle=tk.ROUND) 
-            self.annot = self.drawing.line((self.last_x, self.last_y, x, y), fill=255, width=self.brush_size.get()) # fg marker
+            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='blue', width=self.brush_size.get()*2, capstyle=tk.ROUND) 
+            self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 255, -1)
         elif self.active_brush == "BG_BRUSH":
-            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='red', width=self.brush_size.get(), capstyle=tk.ROUND)
-            self.annot = self.drawing.line((self.last_x, self.last_y, x, y), fill=0, width=self.brush_size.get()) # bg marker
+            self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), fill='red', width=self.brush_size.get()*2, capstyle=tk.ROUND)
+            self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 0, -1)
 
         self.last_x, self.last_y = x, y
 

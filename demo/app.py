@@ -14,11 +14,11 @@ from PIL import Image
 import numpy as np
 
 class App(tk.Frame):
-    def __init__(self, root, pipeline, max_img_dim=2000):
+    def __init__(self, root, pipeline, max_img_dim=800):
         super().__init__(root)
         self.root = root
         self.root.title('INTERACTIVE DEMO')
-        self.root.geometry("2500x2500")
+        self.root.geometry("2000x2000")
         self.root.resizable(width=True, height=True)
 
         self.controller = Controller(pipeline, self.update_canvas)

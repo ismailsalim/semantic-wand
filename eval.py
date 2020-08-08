@@ -49,7 +49,6 @@ def main():
                                                         1, # cv2 BGR image reading
                                                         os.path.join(args.fg_weights, weights_id)) 
 
-            
             mse = compute_mse_error(pred, target, fg_weights) 
             sad = compute_sad_error(pred, target, fg_weights)
             errors['mse'].append(mse)
@@ -90,11 +89,11 @@ def preprocess_images(pred_file, target_file, read_type, weights_file=None):
     pred = cv2.imread(pred_file, read_type) 
     h, w = pred.shape[:2]
     target = cv2.imread(target_file, read_type)
-    target = cv2.resize(target, (w, h)) 
+    target = cv2.resize(target, (w, h), cv2.INTER_NEAREST) 
 
     if weights_file is not None:
         fg_weights = cv2.imread(weights_file, 0)
-        fg_weights = cv2.resize(fg_weights, (w, h), 0) 
+        fg_weights = cv2.resize(fg_weights, (w, h), 0, cv2.INTER_NEAREST) 
         return pred, target, fg_weights
     
     return pred, target

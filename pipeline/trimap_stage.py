@@ -25,7 +25,7 @@ pipe_logger = logging.getLogger("pipeline")
 
 class TrimapStage: 
     def __init__(self, def_fg_threshold=0.99, unknown_threshold=0.1,
-                        lr=0.001, batch_size=12000, 
+                        lr=0.001, batch_size=12000,
                         unknown_lower_bound=0.01, unknown_upper_bound=0.99):
         self.def_fg_threshold = def_fg_threshold
         self.unknown_threshold = unknown_threshold
@@ -46,8 +46,8 @@ class TrimapStage:
         fg_mask = heatmap > self.def_fg_threshold
         unknown_mask = heatmap > self.unknown_threshold
 
-        cv2.imwrite("data/inter/output/fg_mask.png", fg_mask.astype(int)*255)
-        cv2.imwrite("data/inter/output/unknown_mask.png", unknown_mask.astype(int)*255)
+        # cv2.imwrite("examples/pineapple/output2/fg_mask.png", fg_mask.astype(int)*255)
+        # cv2.imwrite("examples/pineapple/output2/unknown_mask.png", unknown_mask.astype(int)*255)
 
         if annotated_img is not None:
             fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
@@ -55,7 +55,7 @@ class TrimapStage:
 
         boundary_mask = self._expand_bounds(bounding_box, img)
 
-        cv2.imwrite("data/inter/output/boudary.png", boundary_mask.astype(int)*255)
+        # cv2.imwrite("data/inter/output/boudary.png", boundary_mask.astype(int)*255)
 
         train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
         
@@ -78,6 +78,19 @@ class TrimapStage:
 
         pipe_logger.info("Trimap generated!")
         return heatmap, trimap, fg_mask, unknown_mask, train_time
+
+        # fg_mask = self._resize_subject(subject, 0.99)
+        # unknown_mask = self._resize_subject(subject, 0.05)
+
+        # start = time.time()
+
+        # trimap = np.zeros(img.shape[:2], dtype=float)
+        # trimap[fg_mask] = 1
+        # trimap[np.logical_and(~fg_mask, unknown_mask)] = 0.5
+
+        # end = time.time()
+
+        # return heatmap, trimap, fg_mask, unknown_mask, end-start
 
 
     def process_alpha(self, alpha, trimap, level):
@@ -118,17 +131,21 @@ class TrimapStage:
 
         X_train = np.vstack((X_fg, X_bg))
         y_train = np.hstack((y_fg, y_bg))
-        
+   
         train_std = X_train.std(axis=0)
         train_mean = X_train.mean(axis=0)
         X_train_norm = (X_train - train_mean)/train_std
-        train_data = DataWrapper(torch.from_numpy(X_train_norm).float().to(device),
-                                torch.from_numpy(y_train).float().to(device))
 
         X_infer = self._format_features(img, heatmap, unknown_mask != fg_mask)
         X_infer_norm = (X_infer - train_mean)/train_std
-        infer_data = DataWrapper(torch.from_numpy(X_infer_norm).float().to(device))
-        
+
+        X_train_final = self._add_fourier_features(X_train_norm, X_train_norm[:, -2:]) # coords
+        X_infer_final = self._add_fourier_features(X_infer_norm, X_infer_norm[:, -2:]) # coords
+
+        train_data = DataWrapper(torch.from_numpy(X_train_final).float().to(device),
+                        torch.from_numpy(y_train).float().to(device))
+        infer_data = DataWrapper(torch.from_numpy(X_infer_final).float().to(device))
+
         return train_data, infer_data
         
 
@@ -138,6 +155,14 @@ class TrimapStage:
         mask_probs = heatmap[mask]
         return np.hstack((mask_probs[:, np.newaxis], colours, coords))
         
+
+    def _add_fourier_features(self, data, features):
+        sin_trans= np.sin(2 * np.pi * features)
+        cos_trans= np.cos(2 * np.pi * features)
+        return np.hstack((data, sin_trans, cos_trans, 
+                        2*sin_trans, 2*cos_trans,
+                        3*sin_trans, 3*cos_trans))
+
 
     def _train(self, model, train_data):
         pipe_logger.info("Training trimap generator on new image...")
@@ -149,7 +174,7 @@ class TrimapStage:
 
         train_loader = DataLoader(dataset=train_data, batch_size=self.batch_size, sampler=sampler)
 
-        criterion = nn.BCEWithLogitsLoss()
+        criterion = nn.BCEWithLogitsLoss() 
         optimiser = optim.Adam(model.parameters(), lr=self.lr)  
         model.train()
         
@@ -165,7 +190,8 @@ class TrimapStage:
 
                 y_pred = model(X_batch)
 
-                loss = criterion(y_pred, y_batch.unsqueeze(1))
+                loss = criterion(y_pred, y_batch.unsqueeze(1)) + torch.mean(torch.log(y_pred)*y_pred) 
+
                 epoch_loss += loss.item()
 
                 loss.backward()
@@ -182,9 +208,9 @@ class TrimapStage:
 
 
     def _infer(self, model, infer_data):
-        infer_loader = DataLoader(dataset=infer_data, batch_size=self.batch_size, 
-                                    shuffle=False)
+        infer_loader = DataLoader(dataset=infer_data, batch_size=self.batch_size, shuffle=False)
         
+
         y_preds = np.array([], dtype=float)
         model.eval()
         with torch.no_grad():
@@ -202,13 +228,13 @@ class TrimapStage:
         return trimap_preds 
         
 
-    def _resize_subject(self, subject):
+    def _resize_subject(self, subject, thresh=-1):
         # scale 28x28 soft mask output up to full image resolution
         binary_mask = retry_if_cuda_oom(self.paste_masks_in_image)(
             subject.pred_masks[:, 0, :, :],  # N, 1, M, M
             subject.pred_boxes,
             subject.image_size,
-            threshold = -1
+            threshold = thresh
         )
         return binary_mask.cpu().numpy().squeeze()
 

@@ -87,17 +87,17 @@ def parse_args():
                         help='Mask R-CNN score threshold for instance recognition')
 
     # for trimap stage specification
-    parser.add_argument('--def_fg_thresh', type=float, default=0.8,
+    parser.add_argument('--def_fg_thresh', type=float, default=0.99,
                         help='Threshold above which mask pixels labelled as def fg for trimap network training')
-    parser.add_argument('--unknown_thresh', type=float, default=0.2,
+    parser.add_argument('--unknown_thresh', type=float, default=0.1,
                         help='Threshold below which mask pixels labelled as def bg for trimap network training')
     parser.add_argument('--lr', type=float, default=0.001, 
                         help='Learning rate during training of trimap network')
     parser.add_argument('--batch_size', type=int, default=12000, 
-                        help='Batch size used for training of trimap network')    
-    parser.add_argument('--unknown_lower_bound', type=float, default=0.01,
+                        help='Batch size during training trimap network')    
+    parser.add_argument('--unknown_lower_bound', type=float, default=0.3,
                         help='Probability below which trimap network inference is classified as bg')
-    parser.add_argument('--unknown_upper_bound', type=float, default=0.99,
+    parser.add_argument('--unknown_upper_bound', type=float, default=0.7,
                         help='Probability above which trimap network inference is classified as fg')
 
     # for refinement stage specification
