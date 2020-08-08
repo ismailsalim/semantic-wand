@@ -44,9 +44,11 @@ class Pipeline:
         """
         img, annotated_img = self.preprocess(annotated_img, img)
 
-        subject, bounding_box = self.to_masking_stage(img, annotated_img)
+        # subject, bounding_box = self.to_masking_stage(img, annotated_img)
 
-        trimap = self.to_trimap_stage(subject, img, bounding_box, annotated_img)
+        heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
+
+        trimap = self.to_trimap_stage(heatmap, img, bounding_box, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
         
@@ -73,21 +75,20 @@ class Pipeline:
 
 
     def to_masking_stage(self, img, annotated_img=None):
-        instance_preds = self.masking_stage.get_all_instances(img)
-
-        self.results['instances'] = self.masking_stage.visualise(instance_preds, img, 0.5)
-        subject, bounding_box = self.masking_stage.get_subject(instance_preds, img, annotated_img)
+        instances = self.masking_stage.get_instance_preds(img)
+        self.results['instances'] = self.masking_stage.get_instances_vis(instances, img)
         
-        return subject, bounding_box
-
-
-    def to_trimap_stage(self, subject, img, bounding_box, annotated_img=None):
-        heatmap, trimap, fg_mask, unknown_mask = self.trimap_stage.process_subject(subject, 
-                                                                                    img,                 
-                                                                                    bounding_box.astype(int),
-                                                                                    annotated_img)
-  
+        heatmap, bounding_box = self.masking_stage.get_subject(instances, img, annotated_img)
         self.results['heatmap'] = heatmap*255
+
+        return heatmap, bounding_box
+
+
+    def to_trimap_stage(self, heatmap, img, bounding_box, annotated_img=None):
+        trimap, fg_mask, unknown_mask = self.trimap_stage.get_trimap(heatmap, img, 
+                                                                        bounding_box.astype(int),
+                                                                        annotated_img)
+  
         self.results['fg_mask'] = fg_mask*255
         self.results['unknown_mask'] = unknown_mask*255
         self.results['trimaps'].append(trimap*255)

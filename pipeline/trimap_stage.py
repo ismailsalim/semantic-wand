@@ -1,10 +1,5 @@
 from trimap_network.models import build_model, DataWrapper
 
-import detectron2
-from detectron2.layers.mask_ops import _do_paste_mask
-
-from detectron2.utils.memory import retry_if_cuda_oom
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -17,11 +12,8 @@ import logging
 import math
 import time
 
-BYTES_PER_FLOAT = 4
-GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
-device = torch.device("cuda:0")
-
 pipe_logger = logging.getLogger("pipeline")
+device = torch.device("cuda:0") 
 
 class TrimapStage: 
     def __init__(self, def_fg_threshold=0.99, unknown_threshold=0.1,
@@ -42,9 +34,8 @@ class TrimapStage:
         ))
 
 
-    def process_subject(self, subject, img, bounding_box, annotated_img=None):
+    def get_trimap(self, heatmap, img, bounding_box, annotated_img=None):
         pipe_logger.info("Trimap generation starting...")
-        heatmap = self._resize_subject(subject)
 
         fg_mask = heatmap > self.def_fg_threshold
         unknown_mask = heatmap > self.unknown_threshold
@@ -62,7 +53,7 @@ class TrimapStage:
             trimap[np.logical_and(~fg_mask, unknown_mask)] = 0.5
 
         pipe_logger.info("Trimap generated!")
-        return heatmap, trimap, fg_mask, unknown_mask
+        return trimap, fg_mask, unknown_mask
 
 
     def process_alpha(self, alpha, trimap, level):
@@ -221,48 +212,4 @@ class TrimapStage:
         return trimap_preds 
         
 
-    def _resize_subject(self, subject, thresh=-1):
-        # scale 28x28 soft mask output up to full image resolution
-        binary_mask = retry_if_cuda_oom(self._paste_masks_in_image)(
-            subject.pred_masks[:, 0, :, :],  # N, 1, M, M
-            subject.pred_boxes,
-            subject.image_size,
-            threshold = thresh
-        )
-        return binary_mask.cpu().numpy().squeeze()
-
-
-    def _paste_masks_in_image(self, masks, boxes, image_shape, threshold):
-        assert masks.shape[-1] == masks.shape[-2], "Only square mask predictions are supported"
-        N = len(masks)
-        if N == 0:
-            return masks.new_empty((0,) + image_shape, dtype=torch.uint8)
-        if not isinstance(boxes, torch.Tensor):
-            boxes = boxes.tensor
-        device = boxes.device
-        assert len(boxes) == N, boxes.shape
-
-        img_h, img_w = image_shape
-
-        if device.type == "cpu":
-            num_chunks = N
-        else:
-            num_chunks = int(np.ceil(N * int(img_h) * int(img_w) * BYTES_PER_FLOAT / GPU_MEM_LIMIT))
-            assert (
-                num_chunks <= N
-            ), "Default GPU_MEM_LIMIT in mask_ops.py is too small; try increasing it"
-        chunks = torch.chunk(torch.arange(N, device=device), num_chunks)
-
-        img_masks = torch.zeros(
-            N, img_h, img_w, device=device, dtype=torch.bool if threshold >= 0 else torch.float
-        )
-        for inds in chunks:
-            masks_chunk, spatial_inds = _do_paste_mask(
-                masks[inds, None, :, :], boxes[inds], img_h, img_w, skip_empty=device.type == "cpu"
-            )
-
-            if threshold >= 0:
-                masks_chunk = (masks_chunk >= threshold).to(dtype=torch.bool)
-
-            img_masks[(inds,) + spatial_inds] = masks_chunk
-        return img_masks
+    
