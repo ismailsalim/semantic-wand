@@ -15,7 +15,7 @@ def main():
     parser.add_argument('-t', '--target', type=str, required=True,
                         help='Path to ground truth alphas or foregrounds')
     parser.add_argument('--fg_weights', type=str,
-                        help='Path to foreground weights (ground truth alphas)')
+                        help='Path to foreground prediction weights (i.e. ground truth alphas)')
     parser.add_argument('--ref', 
                         help='For reference to specific model for logging')
     args = parser.parse_args()
@@ -82,7 +82,7 @@ def main():
             eval_logger.info("Gradient: {0:.4f}, Connectivity: {1:.4f}, MSE: {2:.4f}, SAD: {3:.4f}\n".format(
             gradient, connectivity, mse, sad))
             
-        report_summary(eval_logger, errors, for_alpha=True)
+        report_summary(eval_logger, errors, for_alpha_preds=True)
 
 
 def preprocess_images(pred_file, target_file, read_type, weights_file=None): 
@@ -99,12 +99,12 @@ def preprocess_images(pred_file, target_file, read_type, weights_file=None):
     return pred, target
 
 
-def report_summary(eval_logger, errors, for_alpha=False):
+def report_summary(eval_logger, errors, for_alpha_preds=False):
     eval_logger.info("********************************************************")
     eval_logger.info("Average MSE: {0:.4f}".format(average(errors['mse'])))
     eval_logger.info("Average SAD: {0:.4f}".format(average(errors['sad'])))
 
-    if for_alpha:
+    if for_alpha_preds:
         eval_logger.info("Average Gradient: {0:.4f}".format(average(errors['grad'])))
         eval_logger.info("Average Connectivity: {0:.4f}".format(average(errors['connectivity'])))
 

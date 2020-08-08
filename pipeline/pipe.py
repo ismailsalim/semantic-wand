@@ -65,7 +65,7 @@ class Pipeline:
         
         self.to_refinement_loop(trimap, alpha, img)
 
-        return self.results, train_time
+        return self.results
 
 
     def to_masking_stage(self, img, annotated_img=None):

@@ -21,8 +21,6 @@ def main():
     pipe_logger = setup_logging(args)
 
     pipe_logger.info("\n\n INITIALISING PIPELINE...")
-    if args.ref is not None:
-        pipe_logger.info(args.ref)
 
     masking_stage = MaskingStage(args.mask_config, args.instance_thresh)
     
@@ -33,24 +31,23 @@ def main():
     
     pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, args.feedback_thresh, args.max_img_dim) 
     
-    if args.interactive:
+    if args.interactive: # use case 1
         root = tk.Tk()
         app = App(root, pipeline, args.max_img_dim)
         root.deiconify()
         app.mainloop()   
 
-    if args.eval:
-        avg_trimap_time = process_images_eval(args, pipeline)
-        pipe_logger.info("Average trimap time takes: {}".format(avg_trimap_time))
-
-    if args.intermediate:
+    if args.intermediate:  # use case 2
         process_image_intermediate(args, pipeline)
+
+    if args.eval: # use case 3
+        process_images_eval(args, pipeline)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    usage = parser.add_mutually_exclusive_group()
+    usage = parser.add_mutually_exclusive_group(required=True)
     usage.add_argument('-interactive', action='store_true', help='To run interactive demo')
     usage.add_argument('-intermediate', action='store_true', 
                         help='To process one image and corresponding scribbles with complete intermediate results')
@@ -59,20 +56,17 @@ def parse_args():
 
     # logging set up
     parser.add_argument('--no_logs', action='store_true', help='To disable logging')
-    parser.add_argument('--ref', type=str, help='Reference for pipeline inference')
 
-    # USE CASE 1: One image with complete intermediate and final results 
+    # USE CASE 2: One image with complete intermediate and final results 
     parser.add_argument('--image', type=str, help='Path to a specific image to be processed')
     parser.add_argument('--scribbles', type=str, help="Paths to a specific scribbles image")
-    parser.add_argument('--output', type=str, help="Path to folder where all output will be saved")
 
-    # USE CASE 2: Folder of images and scribbles with only final results
-    parser.add_argument('--images_dir', type=str, help='Path to folder of images that will be processed')
-    parser.add_argument('--scribbles_dir', type=str, help='Path to folder of scribbles that will be used with images')
-    parser.add_argument('--trimaps_dir', type=str, help='Path to folder where final trimap will be saved')
-    parser.add_argument('--fgs_dir', type=str, help='Path to folder where alpha output will be saved')
-    parser.add_argument('--alphas_dir', type=str, help='Path to folder where fg output will be saved')
-    parser.add_argument('--mattes_dir', type=str, help='Path to folder where matte output will be saved')
+    # USE CASE 3: Folder of images and scribbles with only final results
+    parser.add_argument('--images_folder', type=str, help='Path to folder of images that will be processed')
+    parser.add_argument('--scribbles_folder', type=str, help='Path to folder of scribbles that will be used with images')
+    
+    # saving results for use cases intermediate and evaluation use cases (1 and 2)
+    parser.add_argument('--output', type=str, help="Path to folder where all output will be saved")
 
     # for pipeline specification
     parser.add_argument('--max_img_dim', type=int, default=2000, 
@@ -105,6 +99,15 @@ def parse_args():
                         help='Path to pre-trained matting model')
 
     args = parser.parse_args()
+
+    if args.intermediate and (args.image is None or args.output is None):
+        parser.error("-intermediate requires --image and --output arguments!")
+
+
+    if args.eval and (args.images_folder is None or args.output is None):
+        parser.error("-eval requires --images_folder and --output arguments!")
+
+
     return args
 
 
@@ -119,92 +122,92 @@ def setup_logging(args):
     return pipe_logger
 
 
-def setup_output(*args):
+def make_dirs(*args):
     for path in args:
         if not os.path.exists(path):
             os.makedirs(path)
 
 
-def pre_process(img_path, scribbles_path=None):
-    img = cv2.imread(img_path)
+def preprocess_scribbles(scribbles, img):
+    assert img.shape[:2] == scribbles.shape[:2], (
+        "Image: {} and Scribbles: {} must be same shape!".format(img.shape[:2], scribbles.shape[:2]))
 
-    if scribbles_path is not None:
-        scribbles = cv2.imread(scribbles_path, 0).astype(np.int32)
-        assert img.shape[:2] == scribbles.shape[:2], (
-            "Image {}: {} and Scribbles {}: {} must be same size!".format(img.shape[:2], img_path, 
-                                                                        scribbles.shape[:2], scribbles_path, ))
+    scribbles[scribbles == 128] = -1 # convert unnannotated pixels
+    scribbles[scribbles == 255] = 1 # convert fg scribbles
+    scribbles[scribbles == 0] = 0 # convert bg scribbles
 
-        scribbles[scribbles == 128] = -1 # convert unnannotated pixels
-        scribbles[scribbles == 255] = 1 # convert fg scribbles
-        scribbles[scribbles == 0] = 0 # convert bg scribbles
-
-        return img, scribbles
-
-    return img
+    return scribbles
 
 
 def process_images_eval(args, pipeline):
-    assert None not in (args.images_dir, args.scribbles_dir, 
-                        args.fgs_dir, args.alphas_dir, args.mattes_dir, args.trimaps_dir), (
-        "Input and output directories must be specified with this usage!"
-    )
-
-    img_ids = sorted(os.listdir(args.images_dir))
-    scribble_ids = sorted(os.listdir(args.scribbles_dir))
-
-    # assumes images and scribbles are identically named
-    assert img_ids == scribble_ids, "Image and scribble folders must be same size!"
-
-    setup_output(args.fgs_dir, args.alphas_dir, args.mattes_dir, args.trimaps_dir)
-
-    trimap_times = []  
-    for img_file, scribbles_file in zip(img_ids, scribble_ids):
-
-        img_path = os.path.join(args.images_dir, img_file)
-        scribbles_path = os.path.join(args.scribbles_dir, scribbles_file)
-
-        img, scribbles = pre_process(img_path, scribbles_path)
-
-        results, trimap_time = pipeline(img, scribbles)
-        trimap_times.append(trimap_time)
-
-        cv2.imwrite(os.path.join(args.fgs_dir, img_file), results['foregrounds'][-1])
-        cv2.imwrite(os.path.join(args.alphas_dir, img_file), results['alphas'][-1])
-        cv2.imwrite(os.path.join(args.mattes_dir, img_file), results['mattes'][-1])
-        cv2.imwrite(os.path.join(args.trimaps_dir, img_file), results['trimaps'][-1])
+    img_files = sorted(os.listdir(args.images_folder))
+        
+    if args.scribbles is not None:
+        scribbles_files = sorted(os.listdir(args.scribbles_folder))
+        assert img_files == scribbles_files, "Image and scribble folders must be identical!" 
+        scribbles_iter = iter(sribble_files)
     
-    return sum(trimap_times)/len(trimap_times)
+    for img_file in img_files:
+        img = cv2.imread(os.path.join(args.images_folder, img_file))
+        
+        scribbles =  None
+        if args.scribbles is not None: 
+            scribbles = cv2.imread(os.path.join(args.scribbles, next(scribbles_iter)), 0).astype(np.int32)
+            scribbles = preprocess_scribbles(scribbles_path)
+
+        results = pipeline(img, scribbles)
+        
+        save_eval_output(results, img_file, args.output)
+
+
+def save_eval_output(results, img_file, output_dir):
+    trimaps_folder, fgs_folder, alphas_folder, mattes_folder = setup_eval_output(output_dir)
+
+    cv2.imwrite(os.path.join(trimaps_folder, img_file), results['trimaps'][-1])
+    cv2.imwrite(os.path.join(fgs_folder, img_file), results['foregrounds'][-1])
+    cv2.imwrite(os.path.join(alphas_folder, img_file), results['alphas'][-1])
+    cv2.imwrite(os.path.join(mattes_folder, img_file), results['mattes'][-1])
+
+
+def setup_eval_output(parent_dir):
+    trimaps_folder = os.path.join(parent_dir, "trimap")
+    fgs_folder =  os.path.join(parent_dir, "fg")
+    alphas_folder = os.path.join(parent_dir, "alpha")
+    mattes_folder = os.path.join(parent_dir, "matte")   
+    
+    make_dirs(trimaps_folder, fgs_folder, alphas_folder, mattes_folder)
+
+    return trimaps_folder, fgs_folder, alphas_folder, mattes_folder
 
 
 def process_image_intermediate(args, pipeline):
-    assert None not in (args.image, args.output), (
-        "Must specify at least one image and an output folder!")
-
+    img = cv2.imread(args.image)
+    
+    scribbles = None
     if args.scribbles is not None:
-        img, scribbles = pre_process(args.image, args.scribbles)
-        results = pipeline(img, scribbles)
-    else: 
-        img = pre_process(args.image)
-        results, _ = pipeline(img)
+        scribbles = cv2.imread(args.scribbles, 0).astype(np.int32)
+        scribbles = preprocess_scribbles(scribbles, img)
+       
+    results = pipeline(img, scribbles)
 
     img_id = os.path.splitext(os.path.basename(args.image))[0]   
-    save_all_results(results, img_id, args.output)
+    save_intermediate_results(results, img_id, args.output)
 
 
-def save_all_results(results, img_id, to_dir):
-    setup_output(to_dir)
+def save_intermediate_results(results, img_id, output_folder):
+    make_dirs(output_folder)
     for i, (img_type, pred) in enumerate(results.items()):
-        save_results_type(pred, img_id, '{}_{}'.format(i, img_type), to_dir)
+        save_results_type(pred, img_id, '{}_{}'.format(i, img_type), output_folder)
 
 
-def save_results_type(pred, img_id, output_type, to_dir):
+def save_results_type(pred, img_id, output_type, output_folder):
     if type(pred) == list: 
         for i, img in enumerate(pred): 
             output_file_name = '{0}_{1}_iter{2}{3}'.format(img_id, output_type, i, '.png')
-            cv2.imwrite(os.path.join(to_dir, output_file_name), img)
+            cv2.imwrite(os.path.join(output_folder, output_file_name), img)
     else: 
         output_file_name = '{0}_{1}{2}'.format(img_id, output_type, '.png')
-        cv2.imwrite(os.path.join(to_dir, output_file_name), pred)
+        cv2.imwrite(os.path.join(output_folder, output_file_name), pred)
 
 
 if __name__ == '__main__':
