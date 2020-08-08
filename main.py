@@ -24,7 +24,7 @@ def main():
 
     masking_stage = MaskingStage(args.mask_config, args.instance_thresh)
     
-    trimap_stage = TrimapStage(args.def_fg_thresh, args.unknown_thresh, args.lr, 
+    trimap_stage = TrimapStage(args.def_fg_thresh, args.def_bg_thresh, args.lr, 
                                 args.batch_size, args.unknown_lower_bound, args.unknown_upper_bound,
                                 args.no_optimisation)  
     
@@ -84,7 +84,7 @@ def parse_args():
     # for trimap stage specification
     parser.add_argument("--def_fg_thresh", type=float, default=0.99,
                         help="Threshold above which mask pixels labelled as def fg for trimap network training")
-    parser.add_argument("--unknown_thresh", type=float, default=0.1,
+    parser.add_argument("--def_bg_thresh", type=float, default=0.1,
                         help="Threshold below which mask pixels labelled as def bg for trimap network training")
     parser.add_argument("--lr", type=float, default=0.001, 
                         help="Learning rate during training of trimap network")

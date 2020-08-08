@@ -16,21 +16,21 @@ pipe_logger = logging.getLogger("pipeline")
 device = torch.device("cuda:0") 
 
 class TrimapStage: 
-    def __init__(self, def_fg_threshold=0.99, unknown_threshold=0.1,
+    def __init__(self, def_fg_threshold=0.99, def_bg_threshold=0.1,
                         lr=0.001, batch_size=12000,
                         unknown_lower_bound=0.01, unknown_upper_bound=0.99, 
                         with_optimisation=True):
         
         self.def_fg_threshold = def_fg_threshold
-        self.unknown_threshold = unknown_threshold
+        self.def_bg_threshold = def_bg_threshold
         self.lr = lr
         self.batch_size = batch_size
         self.unknown_lower_bound = unknown_lower_bound
         self.unknown_upper_bound = unknown_upper_bound
         self.with_optimisation = with_optimisation
 
-        pipe_logger.info("def_fg_thresh: {}, unknown_thresh: {}, lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
-            def_fg_threshold, unknown_threshold, lr, batch_size, unknown_lower_bound, unknown_upper_bound
+        pipe_logger.info("def_fg_thresh: {}, def_bg_thresh: {}, lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
+            def_fg_threshold, def_bg_threshold, lr, batch_size, unknown_lower_bound, unknown_upper_bound
         ))
 
 
@@ -38,22 +38,22 @@ class TrimapStage:
         pipe_logger.info("Trimap generation starting...")
 
         fg_mask = heatmap > self.def_fg_threshold
-        unknown_mask = heatmap > self.unknown_threshold
+        bg_mask = heatmap > self.def_bg_threshold
 
         if annotated_img is not None:
             fg_mask = np.where(annotated_img != -1, annotated_img, fg_mask).astype(bool)
-            unknown_mask = np.where(annotated_img != -1, annotated_img, unknown_mask).astype(bool)
+            bg_mask = np.where(annotated_img != -1, annotated_img, bg_mask).astype(bool)
 
         if self.with_optimisation:
-            trimap = self._optimise_trimap(bounding_box, img, heatmap, fg_mask, unknown_mask)
+            trimap = self._optimise_trimap(bounding_box, img, heatmap, fg_mask, bg_mask)
 
         else:
             trimap = np.zeros(img.shape[:2], dtype=float)
             trimap[fg_mask] = 1
-            trimap[np.logical_and(~fg_mask, unknown_mask)] = 0.5
+            trimap[np.logical_and(~fg_mask, bg_mask)] = 0.5
 
         pipe_logger.info("Trimap generated!")
-        return trimap, fg_mask, unknown_mask
+        return trimap
 
 
     def process_alpha(self, alpha, trimap, level):
@@ -62,10 +62,10 @@ class TrimapStage:
         return trimap
 
 
-    def _optimise_trimap(self, bounding_box, img, heatmap, fg_mask, unknown_mask):
+    def _optimise_trimap(self, bounding_box, img, heatmap, fg_mask, bg_mask):
         boundary_mask = self._expand_bounds(bounding_box, img)
 
-        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, unknown_mask, boundary_mask)
+        train_data, infer_data = self._preprocess_data(img, heatmap, fg_mask, bg_mask, boundary_mask)
 
         self.trimap_generator = build_model()
 
@@ -76,7 +76,7 @@ class TrimapStage:
         trimap = np.zeros(img.shape[:2], dtype=float) 
         trimap[fg_mask] = 1.0
 
-        coords = np.argwhere(unknown_mask != fg_mask)
+        coords = np.argwhere(bg_mask != fg_mask)
         for coord, pred in zip(coords, unknown_preds):
             trimap[coord[0], coord[1]] = pred
 
@@ -106,9 +106,9 @@ class TrimapStage:
         return mask
 
 
-    def _preprocess_data(self, img, heatmap, fg_mask, unknown_mask, boundary_mask):
+    def _preprocess_data(self, img, heatmap, fg_mask, bg_mask, boundary_mask):
         X_fg = self._format_features(img, heatmap, fg_mask)
-        X_bg = self._format_features(img, heatmap, np.logical_and(~unknown_mask, boundary_mask))
+        X_bg = self._format_features(img, heatmap, np.logical_and(~bg_mask, boundary_mask))
 
         y_fg = np.ones(len(X_fg))
         y_bg = np.zeros(len(X_bg))
@@ -120,7 +120,7 @@ class TrimapStage:
         train_mean = X_train.mean(axis=0)
         X_train_norm = (X_train - train_mean)/train_std
 
-        X_infer = self._format_features(img, heatmap, unknown_mask != fg_mask)
+        X_infer = self._format_features(img, heatmap, bg_mask != fg_mask)
         X_infer_norm = (X_infer - train_mean)/train_std
 
         X_train_final = self._add_fourier_features(X_train_norm, X_train_norm[:, -2:]) # coords

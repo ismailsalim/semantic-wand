@@ -42,7 +42,7 @@ class Pipeline:
                 * Alpha/Foreground prediction(s)
                 * Matte(s)
         """
-        img, annotated_img = self.preprocess(annotated_img, img)
+        img, annotated_img = self._preprocess(annotated_img, img)
 
         heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
 
@@ -53,26 +53,6 @@ class Pipeline:
         self.to_refinement_loop(trimap, alpha, img)
 
         return self.results
-
-
-    def preprocess(self, annotated_img, img):
-        if annotated_img is not None:
-            assert len(annotated_img.shape) == 2,(
-                "Annotation image must be grayscale!")
-            assert img.shape[:2] == annotated_img.shape[:2], (
-                "Annotation image and input image must have same (h, w)!" )
-
-            annots = np.array([-1, 0, 1])
-            assert not False in np.in1d(annotated_img, annots), (
-                "Anotated image must only contain [-1, 0, 1]")
-
-        h, w = img.shape[:2]
-        if h > self.max_img_dim or w > self.max_img_dim: 
-            img = self._rescale_img(img) 
-            if annotated_img is not None:
-                annotated_img = self._rescale_img(annotated_img)
-        
-        return img, annotated_img
 
 
     def to_masking_stage(self, img, annotated_img=None):
@@ -123,12 +103,7 @@ class Pipeline:
                 Definite foreground represented by 1
                 Unknown region represented by 0.5
         """
-        trimap, fg_mask, unknown_mask = self.trimap_stage.get_trimap(heatmap, img, 
-                                                                        bounding_box.astype(int),
-                                                                        annotated_img)
-  
-        self.results['fg_mask'] = fg_mask*255
-        self.results['unknown_mask'] = unknown_mask*255
+        trimap = self.trimap_stage.get_trimap(heatmap, img, bounding_box.astype(int), annotated_img)
         self.results['trimaps'].append(trimap*255)
         
         return trimap
@@ -183,6 +158,25 @@ class Pipeline:
             self.to_refinement_loop(trimap, alpha, img)
 
 
+    def _preprocess(self, annotated_img, img):
+        if annotated_img is not None:
+            assert len(annotated_img.shape) == 2,(
+                "Annotation image must be grayscale!")
+            assert img.shape[:2] == annotated_img.shape[:2], (
+                "Annotation image and input image must have same (h, w)!" )
+
+            annots = np.array([-1, 0, 1])
+            assert not False in np.in1d(annotated_img, annots), (
+                "Anotated image must only contain [-1, 0, 1]")
+
+        h, w = img.shape[:2]
+        if h > self.max_img_dim or w > self.max_img_dim: 
+            img = self._rescale_img(img) 
+            if annotated_img is not None:
+                annotated_img = self._rescale_img(annotated_img)
+        
+        return img, annotated_img
+
     def _rescale_img(self, img):
         (h, w) = img.shape[:2]
 
@@ -194,5 +188,6 @@ class Pipeline:
             dim = (self.max_img_dim, int(h*r))
 
         return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+
 
 
