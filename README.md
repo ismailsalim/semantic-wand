@@ -19,44 +19,57 @@ The app is built with Python's Tk interface. Hopefully, usage is self-explanator
 
 To start the app, run from the command line:
 ```bash
-python main.py --interactive
+python main.py -interactive
 ```
 
-### 2. Multiple images 
+### 2. Complete intermediate pipeline results
 ```bash
-# This runs every image in the specified input directory and their corresponding 
-# scribble through the pipeline and outputs fg, alpha, and matte predictions to the
-# specified output folders. 
-# - Assumes that scribbles and images are named identically!
-# - Useful to produce the output to run `eval.py` for accuracy statistics.
-python main.py -multiple --images_dir input/images --scribbles_dir input/scribbles --fgs_dir output/fgs --alphas_dir output/alphas --mattes_dir output/mattes 
-```
-
-### 3. Complete intermediate pipeline results
-```bash
-# This runs the specified image with the specified scribble and saves all the 
-# intermediate and final results that generated throughout the pipeline such as 
-# the various trimap iterations.
+# This runs the specified image with the specified scribble and saves all
+# the intermediate and final results that generated throughout the 
+# pipeline such as the various trimap iterations.
 python main.py -intermediate --image img.png --scribbles scribble.png --output output/
 ```
 
-### Additional arguments
+### 3. Multiple image processing (for evaluation)
 ```bash
-# This changes the maximum dimension of the image fed into the pipeline to 3000 
-# To maintain the original input image size, make this value bigger than the 
-# largest dimension of the input image.
-python main.py  ... --max_img_dim 3000
+# This runs every image in the specified input directory and their
+# corresponding scribble through the pipeline and outputs fg, alpha, 
+# and matte predictions to the specified output folders. 
+# - Assumes that scribbles and images are named identically!
+# - Useful to produce the output to run `eval.py` for accuracy statistics.
+python main.py -eval --images_folder imgs/ --scribles_folder scribbles/ --output output/
+```
 
-# This changes the learning rate and batch size used for the trimap generation
-# network to 0.0001 and 4000 respectively.
-python main.py ... --lr 0.0001 --batch_size 4000
+### Optional arguments
+```bash
+# This changes the maximum dimension of the image fed into the 
+# pipeline to 1000 pixels large
+# To maintain the original input image size, make this value 
+# bigger than the largest dimension of the input image.
+python main.py  ... --max_img_dim 1000
+
+# This changes the threshold applied for proceeding to the next 
+# iteration of the refinement loop i.e the minimum proportional 
+# change in the trimap (a smaller threshold tends towards more iterations)
+python main.py ... --threshold 0.001
 
 # This uses a non-default model from Detectron2. Format follows directory structure 
 # in the Detectron2 source code: 
 # https://github.com/facebookresearch/detectron2/tree/master/configs
 python main.py ... --mask_config COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml
 
+# This changes the thresholds applied to the probability mask (heatmap) to generate the definite foreground/background regions of the trimap
+python main.py ... --def_fg_thresh 0.2 --def_bg_thresh 0.8
+
+# This simply uses probability mask thresholding to generate the trimap 
+# and does not apply the trimap generator network (faster but generally less accurate)
+python main.py ... --no_optimisation
+
+# This changes the thresholds applied to the sigmoid output to 
+# classify pixels according to the trimap's three classes
+python main.py ... --unknown_lower_bound 0.4 --unknown_upper_bound 0.6
 ```
+
 ## Evaluation
 `eval.py` can be used to calculate alpha prediction errors with respect to ground truth alpha 
 

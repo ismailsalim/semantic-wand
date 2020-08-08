@@ -189,7 +189,7 @@ def preprocess_scribbles(scribbles, img):
     assert img.shape[:2] == scribbles.shape[:2], (
         "Image: {} and Scribbles: {} must be same shape!".format(img.shape[:2], scribbles.shape[:2]))
 
-    scribbles[scribbles == 128] = -1 # convert unnannotated pixels
+    scribbles[scribbles == 128] = -1 # convert unnannotated areas
     scribbles[scribbles == 255] = 1 # convert fg scribbles
     scribbles[scribbles == 0] = 0 # convert bg scribbles
 
