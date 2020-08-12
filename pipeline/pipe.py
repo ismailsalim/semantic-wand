@@ -10,17 +10,14 @@ pipe_logger = logging.getLogger("pipeline")
 
 class Pipeline:
     def __init__(self, masking_stage, trimap_stage, refinement_stage, 
-                feedback_thresh=0.01, max_img_dim=1000):
+                feedback_thresh=0.01):
         self.masking_stage = masking_stage
         self.trimap_stage = trimap_stage
         self.refinement_stage = refinement_stage
-
-        self.max_img_dim = max_img_dim
         self.feedback_thresh = feedback_thresh
         self.results = defaultdict(list)
 
         pipe_logger.info("Alpha feedback iteration threshold: {}".format(feedback_thresh))
-        pipe_logger.info("Max image dimension: {}".format(max_img_dim))
 
 
     def __call__(self, img, annotated_img=None):
@@ -42,8 +39,6 @@ class Pipeline:
                 * Alpha/Foreground prediction(s)
                 * Matte(s)
         """
-        img, annotated_img = self._preprocess(annotated_img, img)
-
         heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
 
         trimap = self.to_trimap_stage(heatmap, img, bounding_box, annotated_img)
@@ -158,36 +153,6 @@ class Pipeline:
             self.to_refinement_loop(trimap, alpha, img)
 
 
-    def _preprocess(self, annotated_img, img):
-        if annotated_img is not None:
-            assert len(annotated_img.shape) == 2,(
-                "Annotation image must be grayscale!")
-            assert img.shape[:2] == annotated_img.shape[:2], (
-                "Annotation image and input image must have same (h, w)!" )
-
-            annots = np.array([-1, 0, 1])
-            assert not False in np.in1d(annotated_img, annots), (
-                "Anotated image must only contain [-1, 0, 1]")
-
-        h, w = img.shape[:2]
-        if h > self.max_img_dim or w > self.max_img_dim: 
-            img = self._rescale_img(img) 
-            if annotated_img is not None:
-                annotated_img = self._rescale_img(annotated_img)
-        
-        return img, annotated_img
-
-    def _rescale_img(self, img):
-        (h, w) = img.shape[:2]
-
-        if h > w:
-            r = self.max_img_dim/float(h)
-            dim = (int(w*r), self.max_img_dim)
-        else:
-            r = self.max_img_dim/float(w)
-            dim = (self.max_img_dim, int(h*r))
-
-        return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
 
 

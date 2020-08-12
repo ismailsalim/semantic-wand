@@ -6,6 +6,7 @@ from pipeline.refinement_stage import RefinementStage
 from demo.app import App
 
 from utils.logger import setup_logger
+from utils.preprocess_image import rescale_img, preprocess_scribbles
 
 import argparse
 import os
@@ -30,7 +31,7 @@ def main():
     
     refinement_stage = RefinementStage(args.matting_weights)
     
-    pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, args.feedback_thresh, args.max_img_dim) 
+    pipeline = Pipeline(masking_stage, trimap_stage, refinement_stage, args.feedback_thresh) 
     
     if args.interactive: # use case 1
         root = tk.Tk()
@@ -55,6 +56,10 @@ def parse_args():
     usage.add_argument("-eval", action="store_true",
                         help="To process a folder of images and scribbles with selected final results required for eval")
 
+    # maximum image dimension
+    parser.add_argument("--max_img_dim", type=int, default=800, 
+                        help="Number of pixels that the images maximum dimension is scaled to for processing")
+
     # logging set up
     parser.add_argument("--logging", action="store_true", help="To enable logging")
 
@@ -70,8 +75,6 @@ def parse_args():
     parser.add_argument("--output", type=str, help="Path to folder where all output will be saved")
 
     # for pipeline specification
-    parser.add_argument("--max_img_dim", type=int, default=800, 
-                        help="Number of pixels that the images maximum dimension is scaled to for processing")
     parser.add_argument("--feedback_thresh", type=int, default=0.01, 
                          help="Min proportional change in trimaps def area to pass back into refinement stage")
 
@@ -117,19 +120,20 @@ def parse_args():
 def process_images_eval(args, pipeline):
     img_files = sorted(os.listdir(args.images_folder))
         
-    if args.scribbles is not None:
+    if args.scribbles_folder is not None:
         scribbles_files = sorted(os.listdir(args.scribbles_folder))
         assert img_files == scribbles_files, "Image and scribble folders must be identical!" 
-        scribbles_iter = iter(sribble_files)
+        scribbles_iter = iter(scribbles_files)
     
     for img_file in img_files:
         img = cv2.imread(os.path.join(args.images_folder, img_file))
+        img = rescale_img(img, args.max_img_dim, cv2.INTER_AREA)
         
         scribbles =  None
-        if args.scribbles is not None: 
-            scribbles = cv2.imread(os.path.join(args.scribbles, next(scribbles_iter)), 0).astype(np.int32)
-            scribbles = preprocess_scribbles(scribbles_path)
-
+        if args.scribbles_folder is not None:
+            scribbles = cv2.imread(os.path.join(args.scribbles_folder, next(scribbles_iter)), 0)
+            scribbles_resized = rescale_img(scribbles, args.max_img_dim, cv2.INTER_NEAREST)
+            scribbles = preprocess_scribbles(scribbles.astype(np.int32), img)
         results = pipeline(img, scribbles)
         
         save_eval_output(results, img_file, args.output)
@@ -156,13 +160,14 @@ def setup_eval_output(parent_dir):
 
 
 def process_image_intermediate(args, pipeline):
-    img = cv2.imread(args.image)
+    img = rescale_img(cv2.imread(args.image), args.max_img_dim, cv2.INTER_AREA)
     
     scribbles = None
     if args.scribbles is not None:
-        scribbles = cv2.imread(args.scribbles, 0).astype(np.int32)
-        scribbles = preprocess_scribbles(scribbles, img)
-       
+        scribbles = cv2.imread(args.scribbles, 0)
+        scribbles = rescale_img(scribbles, args.max_img_dim, cv2.INTER_NEAREST)
+        scribbles = preprocess_scribbles(scribbles.astype(np.int32), img)
+    
     results = pipeline(img, scribbles)
 
     img_id = os.path.splitext(os.path.basename(args.image))[0]   
@@ -183,17 +188,6 @@ def save_results_type(pred, img_id, output_type, output_folder):
     else: 
         output_file_name = "{0}_{1}{2}".format(img_id, output_type, ".png")
         cv2.imwrite(os.path.join(output_folder, output_file_name), pred)
-
-
-def preprocess_scribbles(scribbles, img):
-    assert img.shape[:2] == scribbles.shape[:2], (
-        "Image: {} and Scribbles: {} must be same shape!".format(img.shape[:2], scribbles.shape[:2]))
-
-    scribbles[scribbles == 128] = -1 # convert unnannotated areas
-    scribbles[scribbles == 255] = 1 # convert fg scribbles
-    scribbles[scribbles == 0] = 0 # convert bg scribbles
-
-    return scribbles
 
 
 def setup_logging(args):

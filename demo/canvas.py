@@ -10,20 +10,20 @@ class CanvasImage:
         self.canvas = canvas
         self.container = None
         self.img = None
-        self.annotations = None
+        self.scribbles = None
         self.active_brush = None
         self.brush_size = brush_size
 
 
     def reload_img(self, img=None):
-        self.canvas.delete('all') # free annotations 
+        self.canvas.delete('all') # free scribbles 
         
         if img is not None:
             self.img = img
             self.imwidth, self.imheight = img.size
 
         self.last_x, self.last_y = None, None
-        self.annotations = np.ones((self.imheight, self.imwidth))*128
+        self.scribbles = np.ones((self.imheight, self.imwidth))*128
 
         self.show_img()  
 
@@ -53,12 +53,12 @@ class CanvasImage:
                 self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), 
                                                     fill='blue', 
                                                     width=self.brush_size.get()*2, capstyle=tk.ROUND) 
-                self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 255, -1)
+                self.annot = cv2.circle(self.scribbles, (x,y) , self.brush_size.get(), 255, -1)
             elif self.active_brush == "BG_BRUSH":
                 self.line = self.canvas.create_line((self.last_x, self.last_y, x, y), 
                                                     fill='red', 
                                                     width=self.brush_size.get()*2, capstyle=tk.ROUND)
-                self.annot = cv2.circle(self.annotations, (x,y) , self.brush_size.get(), 0, -1)
+                self.annot = cv2.circle(self.scribbles, (x,y) , self.brush_size.get(), 0, -1)
 
         self.last_x, self.last_y = x, y
 

@@ -1,3 +1,5 @@
+from utils.preprocess_image import preprocess_scribbles
+
 import cv2
 import numpy as np
 
@@ -16,10 +18,9 @@ class Controller:
         self.update_canvas_cb(cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB))
 
 
-    def process_img(self, annotations):
-        # annotations is PIL.Image.Image
-        annotations = self.preprocess_annotations(annotations)
-        self.model_results = self.model(self.img, annotations)
+    def process_img(self, scribbles):
+        scribbles = preprocess_scribbles(scribbles)
+        self.model_results = self.model(self.img, scribbles)
         self.instances = self.model_results['instances']
         self.heatmap = self.model_results['heatmap']
         self.trimap = self.model_results['trimaps'][-1] # get final trimap
@@ -27,12 +28,5 @@ class Controller:
         self.matte = self.model_results['mattes'][-1] # get final matte
         self.update_canvas_cb(self.matte, with_matte=True)
 
-
-    def preprocess_annotations(self, annotations):
-        annotations = np.array(annotations, dtype=np.int32)
-        annotations[annotations == 128] = -1 # convert unnatoated pixels
-        annotations[annotations == 255] = 1 # convert fg annotations
-        annotations[annotations == 0] = 0 # convert bg annotations
-        return annotations
 
         

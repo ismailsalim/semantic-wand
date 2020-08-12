@@ -5,6 +5,7 @@ from pipeline.masking_stage import MaskingStage
 from pipeline.trimap_stage import TrimapStage
 from pipeline.refinement_stage import RefinementStage
 from pipeline.pipe import Pipeline
+from utils.preprocess_image import rescale_img
 
 import tkinter as tk
 from tkinter import ttk, filedialog
@@ -39,7 +40,7 @@ class App(tk.Frame):
         self.load_button.pack(side=tk.LEFT)
 
         self.save_scribbles = tk.Button(self.menu, text="Save Scribbles", 
-                                    command=lambda: self.save(np.array(self.img_on_canvas.annotations),
+                                    command=lambda: self.save(np.array(self.img_on_canvas.scribbles),
                                                                         "_scribbles"))
         self.save_scribbles.pack(side=tk.LEFT)
 
@@ -104,7 +105,7 @@ class App(tk.Frame):
         self.brush_size_slider = tk.Scale(self.workspace, from_=1, to=25, orient=tk.HORIZONTAL, label="Brush Size")
         self.brush_size_slider.pack(side=tk.TOP, pady=10)
 
-        self.reset_button = tk.Button(self.workspace, text="Reset Annotations", command=self.reset_annotations)
+        self.reset_button = tk.Button(self.workspace, text="Reset scribbles", command=self.reset_scribbles)
         self.reset_button.pack(side=tk.TOP, pady= 10)
 
 
@@ -117,25 +118,9 @@ class App(tk.Frame):
         img = cv2.imread(filename.name)
         self.controller.filename, _ = os.path.splitext(os.path.basename(filename.name))
         
-        # resize image to the fixed canvas size
-        h, w = img.shape[:2]
-        if h > self.max_img_dim or w > self.max_img_dim: 
-            img = self.rescale_img(img, self.max_img_dim)
+        img = rescale_img(img, self.max_img_dim, cv2.INTER_AREA)
         
         self.controller.set_img(img)
-    
-
-    def rescale_img(self, img, max_img_dim):
-        (h, w) = img.shape[:2]
-
-        if h > w:
-            r = max_img_dim/float(h)
-            dim = (int(w*r), max_img_dim)
-        else:
-            r = max_img_dim/float(w)
-            dim = (max_img_dim, int(h*r))
-
-        return cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
 
 
     def save(self, img, img_type):
@@ -149,8 +134,8 @@ class App(tk.Frame):
 
     def process_img(self):
         if self.img_on_canvas:
-            annotations = self.img_on_canvas.annotations
-            self.controller.process_img(annotations)
+            scribbles = self.img_on_canvas.scribbles
+            self.controller.process_img(scribbles)
 
 
     def activate_brush(self, button_pressed, brush_type):
@@ -167,7 +152,7 @@ class App(tk.Frame):
                 self.img_on_canvas.active_brush = brush_type
 
 
-    def reset_annotations(self):
+    def reset_scribbles(self):
         if self.img_on_canvas:
             self.img_on_canvas.reload_img()
 
