@@ -11,7 +11,7 @@ You can install the correct version of Detectron2 (with cuda) according to the i
 
 **Note:** The masking stage relies on a pre-trained Mask R-CNN model provided by [Detectron2](https://github.com/facebookresearch/detectron2). The model should be downloaded automatically the first time it is used for inference so be aware that this first time will take a bit longer!
 
-**Note:** The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which **must** be manually downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view) and placed in the `matting_network/` directory (see [Directory Structure](##directory-structure) below). This model is covered by the [Adobe Deep Image Matting Dataset License Agreement](https://drive.google.com/file/d/1MKRen-TDGXYxm9IawPAZrdXQIYhI0XRf/view).
+**Note:** The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which **must** be manually downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view) and placed in the `matting_network/` directory (see [Directory Structure](##directory-structure) below). **This model is covered by the [Adobe Deep Image Matting Dataset License Agreement](https://drive.google.com/file/d/1MKRen-TDGXYxm9IawPAZrdXQIYhI0XRf/view)**.
 
 ## Use
 ### 1. Interactive app
@@ -42,6 +42,9 @@ python main.py -eval --images_folder imgs/ --scribles_folder scribbles/ --output
 
 ### Optional arguments
 ```bash
+# This describe all the various arguments you can change
+python main.py -h
+
 # This changes the maximum dimension of the image fed into the pipeline to 1000 
 # pixels large.
 # To maintain the original input image size, make this value bigger than the largest 
