@@ -7,6 +7,7 @@ class Controller:
     def __init__(self, model, update_canvas_cb):
         self.filename = None
         self.img = None
+
         self.model_results = None
 
         self.model = model
@@ -15,6 +16,13 @@ class Controller:
 
     def set_img(self, img):
         self.img = img
+
+        self.instances = None
+        self.heatmap = None
+        self.trimap = None
+        self.alpha = None
+        self.matte = None
+        
         self.update_canvas_cb(cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB))
 
 
