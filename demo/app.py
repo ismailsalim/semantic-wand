@@ -102,7 +102,7 @@ class App(tk.Frame):
                                         command=lambda: self.activate_brush(self.bg_brush_button, "BG_BRUSH"))
         self.bg_brush_button.pack(side=tk.TOP, pady=10)
 
-        self.brush_size_slider = tk.Scale(self.workspace, from_=1, to=25, orient=tk.HORIZONTAL, label="Brush Size")
+        self.brush_size_slider = tk.Scale(self.workspace, from_=1, to=25, orient=tk.HORIZONTAL, label="Size")
         self.brush_size_slider.pack(side=tk.TOP, pady=10)
 
         self.reset_button = tk.Button(self.workspace, text="Reset scribbles", command=self.reset_scribbles)
