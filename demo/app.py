@@ -4,11 +4,11 @@ from demo.canvas import CanvasImage
 from pipeline.masking_stage import MaskingStage
 from pipeline.trimap_stage import TrimapStage
 from pipeline.refinement_stage import RefinementStage
-from pipeline.pipe import Pipeline
+from pipeline.pipe import Pipeline, NoInstancesFoundError, NoSubjectFoundError
 from utils.preprocess_image import rescale_img
 
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, messagebox
 import cv2
 import os
 from PIL import Image
@@ -135,7 +135,14 @@ class App(tk.Frame):
     def process_img(self):
         if self.img_on_canvas:
             scribbles = self.img_on_canvas.scribbles
-            self.controller.process_img(scribbles)
+
+            try:
+                self.controller.process_img(scribbles)
+            except NoSubjectFoundError:
+                tk.messagebox.showerror("No subject found!", "See instances output!")
+            except NoInstancesFoundError:
+                tk.messagebox.showerror("No Instances Found!", "Try another image!")
+
 
 
     def activate_brush(self, button_pressed, brush_type):

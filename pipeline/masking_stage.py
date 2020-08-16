@@ -1,5 +1,6 @@
 from masking_network.predictor import Predictor
 from masking_network.models import ModifiedRCNN
+from pipeline.pipe import NoInstancesFoundError, NoSubjectFoundError
 
 import logging
 
@@ -53,7 +54,7 @@ class MaskingStage:
 
         instances = preds[0]['instances']
         if len(instances) == 0:
-            raise ValueError("No instances found!")
+            raise NoInstancesFoundError("No instances found!")
         
         pipe_logger.info("Instances detected!")
         return instances
@@ -83,7 +84,7 @@ class MaskingStage:
         matching = [np.sum(np.logical_and(m==True, annotated_img==1)) for m in masks] 
         
         if all(sum == 0 for sum in matching):
-            raise ValueError("Can't identify a subject from annotations!") 
+            raise NoSubjectFoundError("Can't identify a subject from annotations!") 
 
         return matching.index(max(matching))
 

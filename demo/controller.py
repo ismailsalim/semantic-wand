@@ -1,7 +1,10 @@
+from pipeline.pipe import NoInstancesFoundError, NoSubjectFoundError
+
 from utils.preprocess_image import preprocess_scribbles
 
 import cv2
 import numpy as np
+
 
 class Controller:
     def __init__(self, model, update_canvas_cb):
@@ -22,19 +25,29 @@ class Controller:
         self.trimap = None
         self.alpha = None
         self.matte = None
-        
+
         self.update_canvas_cb(cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB))
 
 
     def process_img(self, scribbles):
         scribbles = preprocess_scribbles(scribbles)
+        
         self.model_results = self.model(self.img, scribbles)
-        self.instances = self.model_results['instances']
-        self.heatmap = self.model_results['heatmap']
-        self.trimap = self.model_results['trimaps'][-1] # get final trimap
-        self.alpha = self.model_results['alphas'][-1] # get final alpha
-        self.matte = self.model_results['mattes'][-1] # get final matte
-        self.update_canvas_cb(self.matte, with_matte=True)
+
+        if self.model_results is None:
+            raise NoInstancesFoundError("No instances found!")
+        
+        self.instances = self.model_results["instances"] # always does instance segmentation
+
+        if not "mattes" in self.model_results:
+            self.update_canvas_cb(self.instances, with_matte=True)
+            raise NoSubjectFoundError("No subject found!")
+        else:
+            self.heatmap = self.model_results["heatmap"]
+            self.trimap = self.model_results["trimaps"][-1] # get final trimap
+            self.alpha = self.model_results["alphas"][-1] # get final alpha
+            self.matte = self.model_results["mattes"][-1] # get final matte
+            self.update_canvas_cb(self.matte, with_matte=True)
 
 
         

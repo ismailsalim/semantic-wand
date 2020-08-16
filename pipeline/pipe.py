@@ -8,6 +8,12 @@ import numpy as np
 
 pipe_logger = logging.getLogger("pipeline")
 
+class NoInstancesFoundError(Exception):
+    pass
+
+class NoSubjectFoundError(Exception):
+    pass
+
 class Pipeline:
     def __init__(self, masking_stage, trimap_stage, refinement_stage, 
                 feedback_thresh=0.01):
@@ -39,8 +45,13 @@ class Pipeline:
                 * Alpha/Foreground prediction(s)
                 * Matte(s)
         """
-        heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
-
+        try:
+            heatmap, bounding_box = self.to_masking_stage(img, annotated_img)
+        except NoSubjectFoundError:
+            return self.results
+        except NoInstancesFoundError:
+            return None
+        
         trimap = self.to_trimap_stage(heatmap, img, bounding_box, annotated_img)
 
         alpha = self.to_refinement_stage(trimap, img)
