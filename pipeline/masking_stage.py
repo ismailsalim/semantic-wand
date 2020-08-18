@@ -24,17 +24,17 @@ device = torch.device("cuda:0")
 
 class MaskingStage:
     def __init__(self, cfg="Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml", 
-                        roi_score_threshold=0.05):
+                        roi_score_threshold=0.01):
         
         self.cfg = get_cfg() 
         self.cfg.merge_from_file(model_zoo.get_config_file(cfg))
         self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(cfg)
 
         # R-CNN configuration specification
-        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 2000
-        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TEST = 1000
-        self.cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN = 2000
-        self.cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 1000
+        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 5000
+        self.cfg.MODEL.RPN.PRE_NMS_TOPK_TEST = 5000
+        self.cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN = 5000
+        self.cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 5000
         self.cfg.MODEL.RPN.NMS_THRESH = 0.7
         self.cfg.MODEL.RPN.IOU_THRESHOLDS = [0.3, 0.7]
         
