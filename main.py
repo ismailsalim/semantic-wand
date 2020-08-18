@@ -81,7 +81,7 @@ def parse_args():
     # for masking stage specification
     parser.add_argument("--mask_config", type=str, default="Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml",
                         help="YAML file with Mask R-CNN configuration (see Detectron2 Model Zoo)")
-    parser.add_argument("--instance_thresh", type=float, default=0.05, 
+    parser.add_argument("--instance_thresh", type=float, default=0.01, 
                         help="Mask R-CNN score threshold for instance recognition")
 
     # for trimap stage specification
