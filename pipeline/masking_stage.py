@@ -107,7 +107,6 @@ class MaskingStage:
         v.overlay_instances(
             masks=masks,
             boxes=boxes,
-            labels=labels,
             assigned_colors=colors,
             alpha=alpha,
         )
