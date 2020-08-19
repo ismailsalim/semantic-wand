@@ -16,7 +16,7 @@ class CanvasImage:
 
 
     def reload_img(self, img=None):
-        self.canvas.delete('all') # free scribbles 
+        self.canvas.delete('all') 
         
         if img is not None:
             self.img = img
@@ -34,7 +34,7 @@ class CanvasImage:
         imagetk = ImageTk.PhotoImage(self.img)
         imageid = self.canvas.create_image(0, 0,anchor='nw', image=imagetk)                                
 
-        self.canvas.lower(imageid)  # set image into background
+        self.canvas.lower(imageid)  
         self.canvas.imagetk = imagetk 
 
         self.canvas.bind('<1>', self.activate_paint)

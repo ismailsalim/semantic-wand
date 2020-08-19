@@ -18,7 +18,7 @@ class App(tk.Frame):
     def __init__(self, root, pipeline, max_img_dim=800):
         super().__init__(root)
         self.root = root
-        self.root.title("INTERACTIVE DEMO")
+        self.root.title("Semantic Wand")
         self.root.geometry("1200x1000")
         self.root.resizable(width=True, height=True)
 
