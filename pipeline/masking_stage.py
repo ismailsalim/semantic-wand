@@ -50,7 +50,7 @@ class MaskingStage:
 
     def get_instance_preds(self, img):
         pipe_logger.info("Instance detection starting...")
-        preds = self.predictor(img)
+        preds = self.predictor(img, 0.5)
 
         instances = preds[0]['instances']
         if len(instances) == 0:

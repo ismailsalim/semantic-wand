@@ -1,7 +1,3 @@
-import numpy as np
-import torch
-from torch import nn
-
 from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from detectron2.modeling.backbone import build_backbone
 from detectron2.modeling.proposal_generator import build_proposal_generator
@@ -12,8 +8,19 @@ from detectron2.structures import Instances
 from detectron2.utils.memory import retry_if_cuda_oom
 from detectron2.layers import paste_masks_in_image
 
+import numpy as np
+import torch
+from torch import nn
+
 @META_ARCH_REGISTRY.register()
 class ModifiedRCNN(nn.Module):
+    """
+    Simply adds mask threshold specification to Detectron2's GeneralizedRCNN 
+    in order to binarise instances' soft masks with varying thresholds.
+
+    Source code for GeneralizedRCNN can be found here: 
+    https://detectron2.readthedocs.io/modules/modeling.html#detectron2.modeling.GeneralizedRCNN
+    """
     def __init__(self, cfg):
         super().__init__()
 
@@ -40,6 +47,8 @@ class ModifiedRCNN(nn.Module):
                 * image: Tensor, image in (C, H, W) format.
                 * height (int), width (int): the output resolution of the model used 
                   for post-proessing
+            mask_threshold (float):
+                Threshold used to binarise instances' soft masks
         Returns:
             list[dict]:
                 Each dict is the modified Instances output for one input image
@@ -113,32 +122,10 @@ class ModifiedRCNN(nn.Module):
         )
         results = Instances((output_height, output_width), **results.get_fields())
 
-        # if results.has("pred_boxes"):
-        #     output_boxes = results.pred_boxes
-        # elif results.has("proposal_boxes"):
-        #     output_boxes = results.proposal_boxes
-
         output_boxes = results.pred_boxes
         output_boxes.scale(scale_x, scale_y)
         output_boxes.clip(results.image_size)
 
         results = results[output_boxes.nonempty()]
 
-        # for thresh in mask_thresholds:
-        #     field = "pred_mask_" + str(thresh)
-        #     trimap_mask = retry_if_cuda_oom(paste_masks_in_image)(
-        #     results.pred_masks[:, 0, :, :],  # N, 1, M, M
-        #     results.pred_boxes,
-        #     results.image_size,
-        #     thresh,
-        #     )
-        #     results.set(field, trimap_mask)
-
-        # results.pred_masks = retry_if_cuda_oom(paste_masks_in_image)(
-        # results.pred_masks[:, 0, :, :],  # N, 1, M, M
-        # results.pred_boxes,
-        # results.image_size,
-        # threshold=mask_threshold,
-        # )
-        
         return results

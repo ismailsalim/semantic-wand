@@ -1,31 +1,10 @@
 import detectron2.data.transforms as T
-import torch
-
 from detectron2.checkpoint import DetectionCheckpointer
-
 from detectron2.data import MetadataCatalog
-
-# from detectron2.data import (
-#     MetadataCatalog,
-#     build_detection_test_loader,
-#     build_detection_train_loader,
-# )
-# from detectron2.evaluation import (
-#     DatasetEvaluator,
-#     inference_on_dataset,
-#     print_csv_format,
-#     verify_results,
-# )
-
 from detectron2.modeling import build_model
-# from detectron2.solver import build_lr_scheduler, build_optimizer
-# from detectron2.utils import comm
-# from detectron2.utils.collect_env import collect_env_info
-# from detectron2.utils.env import seed_all_rng
-# from detectron2.utils.events import CommonMetricPrinter, JSONWriter, TensorboardXWriter
-# from detectron2.utils.logger import setup_logger
-# from detectron2.structures import Instances
+
 import logging
+import torch
 
 class Predictor:
   """
@@ -33,9 +12,13 @@ class Predictor:
   1. Loading checkpoint from `cfg.MODEL.WEIGHTS`.
   2. Taking BGR image as the input and applyubg conversion defined by `cfg.INPUT.FORMAT`.
   3. Apply resizing defined by `cfg.INPUT.{MIN,MAX}_SIZE_TEST`.
-
-  NEED TO CHANGE THIS
   4. Take one input image and produce a single output, instead of a batch.
+
+  Note that this simply adds mask threshold specification to Detectron2's DefaultPredictor 
+  in order to binarise instances' soft masks with varying thresholds.
+
+  Source code for DefaultPredictor can be found here: 
+  https://detectron2.readthedocs.io/modules/engine.html#detectron2.engine.defaults.DefaultPredictor
   """
 
   def __init__(self, cfg):
@@ -55,7 +38,7 @@ class Predictor:
     assert self.input_format in ["RGB", "BGR"], self.input_format
 
 
-  def __call__(self, original_image):
+  def __call__(self, original_image, mask_threshold):
     """
     Args:
       original_image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -74,8 +57,6 @@ class Predictor:
 
       inputs = {"image": image, "height": height, "width": width}
 
-      # predictions = self.model([inputs], self.mask_thresh)
-
-      predictions = self.model([inputs], 0.5)
+      predictions = self.model([inputs], mask_threshold)
 
       return predictions
