@@ -23,6 +23,10 @@ GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
 device = torch.device("cuda:0") 
 
 class MaskingStage:
+    """
+    Performs instance segmentation using a pre-trained Detectron2 model and identifies
+    the object of interest (subject) according to user annotations.
+    """
     def __init__(self, cfg="Misc/cascade_mask_rcnn_X_152_32x8d_FPN_IN5k_gn_dconv.yaml", 
                         roi_score_threshold=0.01):
         
@@ -49,6 +53,13 @@ class MaskingStage:
 
 
     def get_instance_preds(self, img):
+        """
+        Performs instance segmentation. 
+
+        Returns:
+            Detectron2 Instances structure:
+            https://detectron2.readthedocs.io/modules/structures.html?highlight=Instances#detectron2.structures.Instances
+        """
         pipe_logger.info("Instance detection starting...")
         preds = self.predictor(img, 0.5)
 
@@ -61,6 +72,15 @@ class MaskingStage:
 
 
     def get_subject(self, instances, img, annotated_img=None):
+        """
+        Identifies the object (instance) of interest to be matted.
+
+        Returns: 
+            heatmap (numpy.array):
+                Subject's instance probability mask with same (h,w) as original image
+            bounding_box (list(float)):
+                Four coordinates in the image of the bounding box offset
+        """
         pipe_logger.info("Subject identification starting...")
         
         if annotated_img is not None:
@@ -90,6 +110,9 @@ class MaskingStage:
 
 
     def get_instances_vis(self, preds, img):
+        """
+        Visualises instance segmentation with bounding boxes and masks
+        """
         v = Visualizer(img[:, :, ::-1], MetadataCatalog.get(self.cfg.DATASETS.TRAIN[0]), scale=1)
 
 
@@ -115,8 +138,10 @@ class MaskingStage:
 
 
     def _process_soft_masks(self, subject, threshold):
-        # scale 28x28 soft mask output up to full image resolution
-        binary_mask = retry_if_cuda_oom(self.paste_masks_in_image)(
+        """ 
+        Scales 28x28 soft mask output up to full image resolution 
+        """
+        binary_mask = retry_if_cuda_oom(self._paste_masks_in_image)(
             subject.pred_masks[:, 0, :, :],  
             subject.pred_boxes,
             subject.image_size,
@@ -126,7 +151,7 @@ class MaskingStage:
         return binary_mask.cpu().numpy()
 
 
-    def paste_masks_in_image(self, masks, boxes, image_shape, threshold):        
+    def _paste_masks_in_image(self, masks, boxes, image_shape, threshold):        
         assert masks.shape[-1] == masks.shape[-2], "Only square mask predictions are supported"
         N = len(masks)
         if N == 0:

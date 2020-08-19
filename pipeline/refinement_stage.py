@@ -23,11 +23,18 @@ import torch
 pipe_logger = logging.getLogger("pipeline")
 
 class RefinementStage:
+    """
+    Performs foreground/alpha estimation around the edges of object using the trimap
+    output of the Trimap Stage.
+    """
     def __init__(self, weights='./matting_network/FBA.pth'):
         self.model = build_model(weights) 
 
 
     def process(self, trimap, img):
+        """
+        Perform foreground/alpha estimation and obtain object matte.
+        """
         pipe_logger.info("Refinement iteration starting...")
 
         h, w = trimap.shape

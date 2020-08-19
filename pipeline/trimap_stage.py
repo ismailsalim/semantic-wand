@@ -16,6 +16,10 @@ pipe_logger = logging.getLogger("pipeline")
 device = torch.device("cuda:0") 
 
 class TrimapStage: 
+    """
+    Performs automatic trimap generation using the instance probability mask (heatmap)
+    output from the Masking Stage.
+    """
     def __init__(self, def_fg_threshold=0.99, def_bg_threshold=0.1,
                         lr=0.001, batch_size=12000,
                         unknown_lower_bound=0.01, unknown_upper_bound=0.99, 
@@ -29,12 +33,24 @@ class TrimapStage:
         self.unknown_upper_bound = unknown_upper_bound
         self.with_optimisation = with_optimisation
 
-        pipe_logger.info("def_fg_thresh: {}, def_bg_thresh: {}, lr: {}, batch_size: {}, lower_b: {}, upper_b: {}".format(
-            def_fg_threshold, def_bg_threshold, lr, batch_size, unknown_lower_bound, unknown_upper_bound
+        pipe_logger.info("def_fg_thresh: {}, def_bg_thresh: {}".format(
+            def_fg_threshold, def_bg_threshold,
         ))
+        pipe_logger.info("lr: {}, batch_size: {}".format(lr, batch_size))
+        
+        pipe_logger.info("unknown_lower_bound,: {}, unknown_upper_bound,: {}".format(
+           unknown_lower_bound, unknown_upper_bound))
+      
 
 
     def get_trimap(self, heatmap, img, bounding_box, annotated_img=None):
+        """
+        Obtain trimap for the image given Masking Stage output. 
+
+        Returns:
+            trimap (numpy.array):
+                2D grayscale images with same (h, w) and img
+        """
         pipe_logger.info("Trimap generation starting...")
 
         fg_mask = heatmap > self.def_fg_threshold
@@ -57,6 +73,9 @@ class TrimapStage:
 
 
     def process_alpha(self, alpha, trimap, level):
+        """
+        Feedback definite foreground/background alpha estimation into a trimap.
+        """
         trimap[alpha==0.0] = 0.0
         trimap[alpha==1.0] = 1.0
         return trimap
@@ -203,7 +222,6 @@ class TrimapStage:
                 y_batch_preds = model(X_batch)
                 y_preds = np.hstack((y_preds, y_batch_preds.to('cpu').numpy().squeeze()))
 
-        # (optimise) sigmoid output thresholds used for trimap regions
         trimap_preds = np.where(y_preds < self.unknown_lower_bound, 0, y_preds)
         trimap_preds = np.where(np.logical_and(trimap_preds >= self.unknown_lower_bound, 
                                                 trimap_preds < self.unknown_upper_bound), 
