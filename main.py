@@ -93,9 +93,9 @@ def parse_args():
                         help="Learning rate during training of trimap network")
     parser.add_argument("--batch_size", type=int, default=12000, 
                         help="Batch size during training trimap network")    
-    parser.add_argument("--unknown_lower_bound", type=float, default=0.3,
+    parser.add_argument("--unknown_lower_bound", type=float, default=0.1,
                         help="Probability below which trimap network inference is classified as bg")
-    parser.add_argument("--unknown_upper_bound", type=float, default=0.7,
+    parser.add_argument("--unknown_upper_bound", type=float, default=0.9,
                         help="Probability above which trimap network inference is classified as fg")
     parser.add_argument("--no_optimisation", action='store_false', 
                         help="Do not perform trimap network training/inference process")
