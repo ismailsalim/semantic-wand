@@ -13,6 +13,8 @@ You can install the correct version of Detectron2 (with cuda) according to the i
 
 **Note:** The refinement stage relies on the pre-trained [FBA matting](https://github.com/MarcoForte/FBA_Matting) model, which **must** be manually downloaded from [here](https://drive.google.com/file/d/1T_oiKDE_biWf2kqexMEN7ObWqtXAzbB1/view) and placed in the `matting_network/` directory (see [Directory Structure](##directory-structure) below). **This model is covered by the [Adobe Deep Image Matting Dataset License Agreement](https://drive.google.com/file/d/1MKRen-TDGXYxm9IawPAZrdXQIYhI0XRf/view)**.
 
+**DISCLAIMER:** We acknowledge that this tool could be used for unethical image manipulation. We condemn the use of this tool for any such purpose and trust that users understand what falls under this category, preventing themselves from carrying out such activity. 
+
 ## Use
 ### 1. Interactive app
 The app is built with Python's Tk interface. Hopefully, usage is self-explanatory.
