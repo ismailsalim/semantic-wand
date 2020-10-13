@@ -1,3 +1,5 @@
+![](images/demo.gif)
+
 # Semantic Wand: A Learning-based Tool for Object Extraction in Natural Images
 
 ## Setting up an environment
