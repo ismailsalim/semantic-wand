@@ -1,4 +1,6 @@
-<img src="images/demo.gif" width="40%">
+<div style="text-align:center">
+<img src="images/demo.gif" width="50%">
+</div>
 
 # Semantic Wand: A Learning-based Tool for Object Extraction in Natural Images
 
