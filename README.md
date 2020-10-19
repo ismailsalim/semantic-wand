@@ -1,4 +1,4 @@
-![](images/demo.gif)
+<img src="images/demo.gif" width="40%">
 
 # Semantic Wand: A Learning-based Tool for Object Extraction in Natural Images
 
