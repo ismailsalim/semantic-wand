@@ -50,7 +50,7 @@ tifffile==2020.7.17
 torch==1.5.0+cu101
 torchvision==0.6.0+cu101
 tqdm==4.46.1
-urllib3==1.25.9
+urllib3==1.26.5
 Werkzeug==1.0.1
 yacs==0.1.7
 zipp==3.1.0
